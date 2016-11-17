@@ -20,17 +20,14 @@ package commands
 import (
 	"context"
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	c "github.com/future-architect/vuls/config"
 	"github.com/future-architect/vuls/cveapi"
-	"github.com/future-architect/vuls/report"
 	"github.com/future-architect/vuls/scan"
 	"github.com/future-architect/vuls/util"
 	"github.com/google/subcommands"
@@ -229,7 +226,6 @@ func (p *ScanCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) 
 
 	// logger
 	Log := util.NewCustomLogger(c.ServerInfo{})
-	scannedAt := time.Now()
 
 	c.Conf.ResultsDir = p.resultsDir
 	c.Conf.CveDBType = p.cvedbtype
@@ -275,56 +271,5 @@ func (p *ScanCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) 
 		return subcommands.ExitFailure
 	}
 
-	scanResults, err := scan.GetScanResults()
-	if err != nil {
-		Log.Fatal(err)
-		return subcommands.ExitFailure
-	}
-
-	//TODO write json at the end of scan
-	Log.Info("Reporting...")
-	dir, err := ensureResultDir(scannedAt)
-	w := report.LocalFileWriter{
-		CurrentDir: dir,
-		FormatJSON: true,
-	}
-	for _, r := range scanResults {
-		r.ScannedAt = scannedAt
-		if err := w.Write(r); err != nil {
-			Log.Fatalf("Failed to write to JSON file, err: %s", err)
-			return subcommands.ExitFailure
-		}
-	}
-
 	return subcommands.ExitSuccess
-}
-
-func ensureResultDir(scannedAt time.Time) (currentDir string, err error) {
-	jsonDirName := scannedAt.Format(time.RFC3339)
-
-	resultsDir := c.Conf.ResultsDir
-	if len(resultsDir) == 0 {
-		wd, _ := os.Getwd()
-		resultsDir = filepath.Join(wd, "results")
-	}
-	jsonDir := filepath.Join(resultsDir, jsonDirName)
-
-	// TODO Check if the directory has already existed?
-	if err := os.MkdirAll(jsonDir, 0700); err != nil {
-		return "", fmt.Errorf("Failed to create dir: %s", err)
-	}
-
-	symlinkPath := filepath.Join(resultsDir, "current")
-	if _, err := os.Lstat(symlinkPath); err == nil {
-		if err := os.Remove(symlinkPath); err != nil {
-			return "", fmt.Errorf(
-				"Failed to remove symlink. path: %s, err: %s", symlinkPath, err)
-		}
-	}
-
-	if err := os.Symlink(jsonDir, symlinkPath); err != nil {
-		return "", fmt.Errorf(
-			"Failed to create symlink: path: %s, err: %s", symlinkPath, err)
-	}
-	return jsonDir, nil
 }

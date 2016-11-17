@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	"github.com/future-architect/vuls/cache"
 	"github.com/future-architect/vuls/config"
 	"github.com/future-architect/vuls/models"
+	"github.com/future-architect/vuls/report"
 	cve "github.com/kotakanbe/go-cve-dictionary/models"
 )
 
@@ -518,14 +520,15 @@ func Scan() []error {
 	}()
 
 	Log.Info("Scanning vulnerable OS packages...")
-	if errs := scanPackages(); errs != nil {
+	scannedAt := time.Now()
+	dir, err := ensureResultDir(scannedAt)
+	if err != nil {
+		return []error{err}
+	}
+	if errs := scanVulns(dir, scannedAt); errs != nil {
 		return errs
 	}
 
-	Log.Info("Scanning vulnerable software specified in the CPE...")
-	if errs := scanVulnByCpeName(); errs != nil {
-		return errs
-	}
 	return nil
 }
 
@@ -553,31 +556,59 @@ func checkRequiredPackagesInstalled() []error {
 	}, timeoutSec)
 }
 
-func scanPackages() []error {
+func scanVulns(jsonDir string, scannedAt time.Time) []error {
 	timeoutSec := 120 * 60
 	return parallelSSHExec(func(o osTypeInterface) error {
-		return o.scanPackages()
-	}, timeoutSec)
-
-}
-
-// scanVulnByCpeName search vulnerabilities that specified in config file.
-func scanVulnByCpeName() []error {
-	timeoutSec := 30 * 60
-	return parallelSSHExec(func(o osTypeInterface) error {
-		return o.scanVulnByCpeName()
-	}, timeoutSec)
-
-}
-
-// GetScanResults returns Scan Resutls
-func GetScanResults() (results models.ScanResults, err error) {
-	for _, s := range servers {
-		r, err := s.convertToModel()
-		if err != nil {
-			return results, fmt.Errorf("Failed converting to model: %s", err)
+		if err := o.scanPackages(); err != nil {
+			return err
 		}
-		results = append(results, r)
+		if err := o.scanVulnByCpeName(); err != nil {
+			return err
+		}
+
+		r, err := o.convertToModel()
+		if err != nil {
+			return err
+		}
+		r.ScannedAt = scannedAt
+
+		w := report.LocalFileWriter{
+			CurrentDir: jsonDir,
+			FormatJSON: true,
+		}
+		if err := w.Write(r); err != nil {
+			return fmt.Errorf("Failed to write to JSON file, err: %s", err)
+		}
+		return nil
+	}, timeoutSec)
+}
+
+func ensureResultDir(scannedAt time.Time) (currentDir string, err error) {
+	jsonDirName := scannedAt.Format(time.RFC3339)
+
+	resultsDir := config.Conf.ResultsDir
+	if len(resultsDir) == 0 {
+		wd, _ := os.Getwd()
+		resultsDir = filepath.Join(wd, "results")
 	}
-	return
+	jsonDir := filepath.Join(resultsDir, jsonDirName)
+
+	// TODO Check if the directory has already existed?
+	if err := os.MkdirAll(jsonDir, 0700); err != nil {
+		return "", fmt.Errorf("Failed to create dir: %s", err)
+	}
+
+	symlinkPath := filepath.Join(resultsDir, "current")
+	if _, err := os.Lstat(symlinkPath); err == nil {
+		if err := os.Remove(symlinkPath); err != nil {
+			return "", fmt.Errorf(
+				"Failed to remove symlink. path: %s, err: %s", symlinkPath, err)
+		}
+	}
+
+	if err := os.Symlink(jsonDir, symlinkPath); err != nil {
+		return "", fmt.Errorf(
+			"Failed to create symlink: path: %s, err: %s", symlinkPath, err)
+	}
+	return jsonDir, nil
 }
