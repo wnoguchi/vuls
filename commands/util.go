@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package report
+package commands
 
 import (
 	"encoding/json"
@@ -28,49 +28,28 @@ import (
 	"strings"
 	"time"
 
+	c "github.com/future-architect/vuls/config"
 	"github.com/future-architect/vuls/models"
 )
 
-// JSONWriter writes results to file.
-type JSONWriter struct {
-	ScannedAt time.Time
-}
-
-func (w JSONWriter) Write(scanResults []models.ScanResult) (err error) {
-	var path string
-	if path, err = ensureResultDir(w.ScannedAt); err != nil {
-		return fmt.Errorf("Failed to make direcotory/symlink : %s", err)
-	}
-
-	for _, scanResult := range scanResults {
-		scanResult.ScannedAt = w.ScannedAt
-	}
-
-	var jsonBytes []byte
-	for _, r := range scanResults {
-		jsonPath := ""
-		if len(r.Container.ContainerID) == 0 {
-			jsonPath = filepath.Join(path, fmt.Sprintf("%s.json", r.ServerName))
-		} else {
-			jsonPath = filepath.Join(path,
-				fmt.Sprintf("%s_%s.json", r.ServerName, r.Container.Name))
-		}
-
-		if jsonBytes, err = json.Marshal(r); err != nil {
-			return fmt.Errorf("Failed to Marshal to JSON: %s", err)
-		}
-		if err := ioutil.WriteFile(jsonPath, jsonBytes, 0600); err != nil {
-			return fmt.Errorf("Failed to write JSON. path: %s, err: %s", jsonPath, err)
-		}
-	}
-	return nil
-}
-
 // JSONDirPattern is file name pattern of JSON directory
-var JSONDirPattern = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$`)
+var JSONDirPattern = regexp.MustCompile(`^\d{8}_\d{4}$`)
 
-// GetValidJSONDirs return valid json directory as array
-func GetValidJSONDirs() (jsonDirs JSONDirs, err error) {
+// JSONDirs array of json files path.
+type JSONDirs []string
+
+func (d JSONDirs) Len() int {
+	return len(d)
+}
+func (d JSONDirs) Swap(i, j int) {
+	d[i], d[j] = d[j], d[i]
+}
+func (d JSONDirs) Less(i, j int) bool {
+	return d[j] < d[i]
+}
+
+// getValidJSONDirs return valid json directory as array
+func getValidJSONDirs() (jsonDirs JSONDirs, err error) {
 	var dirInfo []os.FileInfo
 	if dirInfo, err = ioutil.ReadDir(c.Conf.ResultsDir); err != nil {
 		err = fmt.Errorf("Failed to read %s: %s", c.Conf.ResultsDir, err)
@@ -86,8 +65,28 @@ func GetValidJSONDirs() (jsonDirs JSONDirs, err error) {
 	return
 }
 
-// LoadOneScanHistory read JSON data
-func LoadOneScanHistory(jsonDir string) (scanHistory models.ScanHistory, err error) {
+func selectScanHistory(jsonDirName string) (history models.ScanHistory, err error) {
+	var jsonDir string
+	if 0 < len(jsonDirName) {
+		jsonDir = filepath.Join(c.Conf.ResultsDir, jsonDirName)
+	} else {
+		var jsonDirs JSONDirs
+		if jsonDirs, err = getValidJSONDirs(); err != nil {
+			return
+		}
+		if len(jsonDirs) == 0 {
+			return history, fmt.Errorf("No scan results are found in %s", c.Conf.ResultsDir)
+		}
+		jsonDir = jsonDirs[0]
+	}
+	if history, err = loadOneScanHistory(jsonDir); err != nil {
+		return
+	}
+	return
+}
+
+// loadOneScanHistory read JSON data
+func loadOneScanHistory(jsonDir string) (scanHistory models.ScanHistory, err error) {
 	var scanResults []models.ScanResult
 	var files []os.FileInfo
 	if files, err = ioutil.ReadDir(jsonDir); err != nil {

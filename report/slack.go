@@ -75,17 +75,16 @@ func (w SlackWriter) Write(scanResults []models.ScanResult) error {
 		bytes, _ := json.Marshal(msg)
 		jsonBody := string(bytes)
 		f := func() (err error) {
-			resp, body, errs := gorequest.New().Proxy(config.Conf.HTTPProxy).Post(conf.HookURL).
-				Send(string(jsonBody)).End()
-			if resp.StatusCode != 200 {
-				log.Errorf("Resonse body: %s", body)
-				if 0 < len(errs) {
-					return errs[0]
-				}
+			resp, body, errs := gorequest.New().Proxy(config.Conf.HTTPProxy).Post(conf.HookURL).Send(string(jsonBody)).End()
+			if 0 < len(errs) || resp == nil || resp.StatusCode != 200 {
+				return fmt.Errorf(
+					"HTTP POST error: %v, url: %s, resp: %v, body: %s",
+					errs, conf.HookURL, resp, body)
 			}
 			return nil
 		}
 		notify := func(err error, t time.Duration) {
+			log.Warn("Error %s", err)
 			log.Warn("Retrying in ", t)
 		}
 		if err := backoff.RetryNotify(f, backoff.NewExponentialBackOff(), notify); err != nil {

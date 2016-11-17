@@ -28,10 +28,10 @@ import (
 	"github.com/future-architect/vuls/models"
 )
 
-// MailWriter send mail
-type MailWriter struct{}
+// EMailWriter send mail
+type EMailWriter struct{}
 
-func (w MailWriter) Write(scanResults []models.ScanResult) (err error) {
+func (w EMailWriter) Write(scanResults []models.ScanResult) (err error) {
 	conf := config.Conf
 	for _, s := range scanResults {
 		to := strings.Join(conf.Mail.To[:], ", ")

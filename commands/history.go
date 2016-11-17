@@ -27,7 +27,6 @@ import (
 	"strings"
 
 	c "github.com/future-architect/vuls/config"
-	"github.com/future-architect/vuls/report"
 	"github.com/google/subcommands"
 )
 
@@ -70,8 +69,8 @@ func (p *HistoryCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{
 	c.Conf.ResultsDir = p.resultsDir
 
 	var err error
-	var jsonDirs report.JSONDirs
-	if jsonDirs, err = report.GetValidJSONDirs(); err != nil {
+	var jsonDirs JSONDirs
+	if jsonDirs, err = getValidJSONDirs(); err != nil {
 		return subcommands.ExitFailure
 	}
 	for _, d := range jsonDirs {

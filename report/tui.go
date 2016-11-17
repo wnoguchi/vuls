@@ -20,7 +20,6 @@ package report
 import (
 	"bytes"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
@@ -40,13 +39,8 @@ var currentCveInfo int
 var currentDetailLimitY int
 
 // RunTui execute main logic
-func RunTui(jsonDirName string) subcommands.ExitStatus {
-	var err error
-	scanHistory, err = selectScanHistory(jsonDirName)
-	if err != nil {
-		log.Errorf("%s", err)
-		return subcommands.ExitFailure
-	}
+func RunTui(history models.ScanHistory) subcommands.ExitStatus {
+	history = scanHistory
 
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
@@ -70,26 +64,6 @@ func RunTui(jsonDirName string) subcommands.ExitStatus {
 	}
 
 	return subcommands.ExitSuccess
-}
-
-func selectScanHistory(jsonDirName string) (latest models.ScanHistory, err error) {
-	var jsonDir string
-	if 0 < len(jsonDirName) {
-		jsonDir = filepath.Join(config.Conf.ResultsDir, jsonDirName)
-	} else {
-		var jsonDirs JSONDirs
-		if jsonDirs, err = GetValidJSONDirs(); err != nil {
-			return
-		}
-		if len(jsonDirs) == 0 {
-			return latest, fmt.Errorf("No scan results are found in %s", config.Conf.ResultsDir)
-		}
-		jsonDir = jsonDirs[0]
-	}
-	if latest, err = LoadOneScanHistory(jsonDir); err != nil {
-		return
-	}
-	return
 }
 
 func keybindings(g *gocui.Gui) (err error) {

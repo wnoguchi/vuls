@@ -72,8 +72,8 @@ func (p *TuiCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) s
 	var jsonDirName string
 	var err error
 	if 0 < len(f.Args()) {
-		var jsonDirs report.JSONDirs
-		if jsonDirs, err = report.GetValidJSONDirs(); err != nil {
+		var jsonDirs JSONDirs
+		if jsonDirs, err = getValidJSONDirs(); err != nil {
 			return subcommands.ExitFailure
 		}
 		for _, d := range jsonDirs {
@@ -101,5 +101,11 @@ func (p *TuiCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) s
 			}
 		}
 	}
-	return report.RunTui(jsonDirName)
+
+	history, err := selectScanHistory(jsonDirName)
+	if err != nil {
+		log.Errorf("Failed to read from JSON: %s", err)
+		return subcommands.ExitFailure
+	}
+	return report.RunTui(history)
 }

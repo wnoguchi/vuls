@@ -20,7 +20,6 @@ package commands
 import (
 	"context"
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -39,46 +38,20 @@ import (
 
 // ScanCmd is Subcommand of host discovery mode
 type ScanCmd struct {
-	lang     string
-	debug    bool
-	debugSQL bool
-
-	configPath string
-
+	lang             string
+	debug            bool
+	debugSQL         bool
+	configPath       string
 	resultsDir       string
 	cvedbtype        string
 	cvedbpath        string
 	cveDictionaryURL string
 	cacheDBPath      string
-
-	cvssScoreOver      float64
-	ignoreUnscoredCves bool
-
-	httpProxy       string
-	askSudoPassword bool
-	askKeyPassword  bool
-
-	containersOnly bool
-	skipBroken     bool
-
-	// reporting
-	reportSlack     bool
-	reportMail      bool
-	reportJSON      bool
-	reportText      bool
-	reportS3        bool
-	reportAzureBlob bool
-	reportXML       bool
-
-	awsProfile  string
-	awsS3Bucket string
-	awsRegion   string
-
-	azureAccount   string
-	azureKey       string
-	azureContainer string
-
-	sshExternal bool
+	httpProxy        string
+	askKeyPassword   bool
+	containersOnly   bool
+	skipBroken       bool
+	sshExternal      bool
 }
 
 // Name return subcommand name
@@ -98,28 +71,13 @@ func (*ScanCmd) Usage() string {
 		[-cve-dictionary-dbpath=/path/to/cve.sqlite3 or mysql connection string]
 		[-cve-dictionary-url=http://127.0.0.1:1323]
 		[-cache-dbpath=/path/to/cache.db]
-		[-cvss-over=7]
-		[-ignore-unscored-cves]
 		[-ssh-external]
 		[-containers-only]
 		[-skip-broken]
-		[-report-azure-blob]
-		[-report-json]
-		[-report-mail]
-		[-report-s3]
-		[-report-slack]
-		[-report-text]
-		[-report-xml]
 		[-http-proxy=http://192.168.0.1:8080]
 		[-ask-key-password]
 		[-debug]
 		[-debug-sql]
-		[-aws-profile=default]
-		[-aws-region=us-west-2]
-		[-aws-s3-bucket=bucket_name]
-		[-azure-account=accout]
-		[-azure-key=key]
-		[-azure-container=container]
 
 		[SERVER]...
 `
@@ -165,18 +123,6 @@ func (p *ScanCmd) SetFlags(f *flag.FlagSet) {
 		defaultCacheDBPath,
 		"/path/to/cache.db (local cache of changelog for Ubuntu/Debian)")
 
-	f.Float64Var(
-		&p.cvssScoreOver,
-		"cvss-over",
-		0,
-		"-cvss-over=6.5 means reporting CVSS Score 6.5 and over (default: 0 (means report all))")
-
-	f.BoolVar(
-		&p.ignoreUnscoredCves,
-		"ignore-unscored-cves",
-		false,
-		"Don't report the unscored CVEs")
-
 	f.BoolVar(
 		&p.sshExternal,
 		"ssh-external",
@@ -202,54 +148,11 @@ func (p *ScanCmd) SetFlags(f *flag.FlagSet) {
 		"http://proxy-url:port (default: empty)",
 	)
 
-	f.BoolVar(&p.reportSlack, "report-slack", false, "Send report via Slack")
-	f.BoolVar(&p.reportMail, "report-mail", false, "Send report via Email")
-	f.BoolVar(&p.reportJSON,
-		"report-json",
-		false,
-		fmt.Sprintf("Write report to JSON files (%s/results/current)", wd),
-	)
-	f.BoolVar(&p.reportText,
-		"report-text",
-		false,
-		fmt.Sprintf("Write report to text files (%s/results/current)", wd),
-	)
-	f.BoolVar(&p.reportXML,
-		"report-xml",
-		false,
-		fmt.Sprintf("Write report to XML files (%s/results/current)", wd),
-	)
-
-	f.BoolVar(&p.reportS3,
-		"report-s3",
-		false,
-		"Write report to S3 (bucket/yyyyMMdd_HHmm/servername.json)",
-	)
-	f.StringVar(&p.awsProfile, "aws-profile", "default", "AWS profile to use")
-	f.StringVar(&p.awsRegion, "aws-region", "us-east-1", "AWS region to use")
-	f.StringVar(&p.awsS3Bucket, "aws-s3-bucket", "", "S3 bucket name")
-
-	f.BoolVar(&p.reportAzureBlob,
-		"report-azure-blob",
-		false,
-		"Write report to Azure Storage blob (container/yyyyMMdd_HHmm/servername.json)",
-	)
-	f.StringVar(&p.azureAccount, "azure-account", "", "Azure account name to use. AZURE_STORAGE_ACCOUNT environment variable is used if not specified")
-	f.StringVar(&p.azureKey, "azure-key", "", "Azure account key to use. AZURE_STORAGE_ACCESS_KEY environment variable is used if not specified")
-	f.StringVar(&p.azureContainer, "azure-container", "", "Azure storage container name")
-
 	f.BoolVar(
 		&p.askKeyPassword,
 		"ask-key-password",
 		false,
 		"Ask ssh privatekey password before scanning",
-	)
-
-	f.BoolVar(
-		&p.askSudoPassword,
-		"ask-sudo-password",
-		false,
-		"[Deprecated] THIS OPTION WAS REMOVED FOR SECURITY REASONS. Define NOPASSWD in /etc/sudoers on target servers and use SSH key-based authentication",
 	)
 }
 
@@ -263,10 +166,6 @@ func (p *ScanCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) 
 			logrus.Error(err)
 			return subcommands.ExitFailure
 		}
-	}
-	if p.askSudoPassword {
-		logrus.Errorf("[Deprecated] -ask-sudo-password WAS REMOVED FOR SECURITY REASONS. Define NOPASSWD in /etc/sudoers on target servers and use SSH key-based authentication")
-		return subcommands.ExitFailure
 	}
 
 	c.Conf.Debug = p.debug
@@ -331,68 +230,11 @@ func (p *ScanCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) 
 	Log := util.NewCustomLogger(c.ServerInfo{})
 	scannedAt := time.Now()
 
-	// report
-	reports := []report.ResultWriter{
-		report.StdoutWriter{},
-		report.LogrusWriter{},
-	}
-	if p.reportSlack {
-		reports = append(reports, report.SlackWriter{})
-	}
-	if p.reportMail {
-		reports = append(reports, report.MailWriter{})
-	}
-	if p.reportJSON {
-		reports = append(reports, report.JSONWriter{ScannedAt: scannedAt})
-	}
-	if p.reportText {
-		reports = append(reports, report.TextFileWriter{ScannedAt: scannedAt})
-	}
-	if p.reportXML {
-		reports = append(reports, report.XMLWriter{ScannedAt: scannedAt})
-	}
-	if p.reportS3 {
-		c.Conf.AwsRegion = p.awsRegion
-		c.Conf.AwsProfile = p.awsProfile
-		c.Conf.S3Bucket = p.awsS3Bucket
-		if err := report.CheckIfBucketExists(); err != nil {
-			Log.Errorf("Failed to access to the S3 bucket. err: %s", err)
-			Log.Error("Ensure the bucket or check AWS config before scanning")
-			return subcommands.ExitUsageError
-		}
-		reports = append(reports, report.S3Writer{})
-	}
-	if p.reportAzureBlob {
-		c.Conf.AzureAccount = p.azureAccount
-		if len(c.Conf.AzureAccount) == 0 {
-			c.Conf.AzureAccount = os.Getenv("AZURE_STORAGE_ACCOUNT")
-		}
-
-		c.Conf.AzureKey = p.azureKey
-		if len(c.Conf.AzureKey) == 0 {
-			c.Conf.AzureKey = os.Getenv("AZURE_STORAGE_ACCESS_KEY")
-		}
-
-		c.Conf.AzureContainer = p.azureContainer
-		if len(c.Conf.AzureContainer) == 0 {
-			Log.Error("Azure storage container name is requied with --azure-container option")
-			return subcommands.ExitUsageError
-		}
-		if err := report.CheckIfAzureContainerExists(); err != nil {
-			Log.Errorf("Failed to access to the Azure Blob container. err: %s", err)
-			Log.Error("Ensure the container or check Azure config before scanning")
-			return subcommands.ExitUsageError
-		}
-		reports = append(reports, report.AzureBlobWriter{})
-	}
-
 	c.Conf.ResultsDir = p.resultsDir
 	c.Conf.CveDBType = p.cvedbtype
 	c.Conf.CveDBPath = p.cvedbpath
 	c.Conf.CveDictionaryURL = p.cveDictionaryURL
 	c.Conf.CacheDBPath = p.cacheDBPath
-	c.Conf.CvssScoreOver = p.cvssScoreOver
-	c.Conf.IgnoreUnscoredCves = p.ignoreUnscoredCves
 	c.Conf.SSHExternal = p.sshExternal
 	c.Conf.HTTPProxy = p.httpProxy
 	c.Conf.ContainersOnly = p.containersOnly
@@ -438,13 +280,13 @@ func (p *ScanCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) 
 		return subcommands.ExitFailure
 	}
 
+	//TODO write json at the end of scan
 	Log.Info("Reporting...")
 	filtered := scanResults.FilterByCvssOver()
-	for _, w := range reports {
-		if err := w.Write(filtered); err != nil {
-			Log.Fatalf("Failed to report, err: %s", err)
-			return subcommands.ExitFailure
-		}
+	jsonWriter := report.JSONWriter{ScannedAt: scannedAt}
+	if err := jsonWriter.Write(filtered); err != nil {
+		Log.Fatalf("Failed to write to JSON file, err: %s", err)
+		return subcommands.ExitFailure
 	}
 
 	return subcommands.ExitSuccess
