@@ -35,7 +35,7 @@ type Config struct {
 	DebugSQL bool
 	Lang     string
 
-	Mail    smtpConf
+	EMail   smtpConf
 	Slack   SlackConf
 	Default ServerInfo
 	Servers map[string]ServerInfo
@@ -114,7 +114,7 @@ func (c Config) Validate() bool {
 		errs = append(errs, err)
 	}
 
-	if mailerrs := c.Mail.Validate(); 0 < len(mailerrs) {
+	if mailerrs := c.EMail.Validate(); 0 < len(mailerrs) {
 		errs = append(errs, mailerrs...)
 	}
 

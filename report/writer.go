@@ -37,5 +37,5 @@ const (
 
 // ResultWriter Interface
 type ResultWriter interface {
-	Write([]models.ScanResult) error
+	Write(models.ScanResult) error
 }

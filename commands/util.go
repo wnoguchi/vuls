@@ -32,57 +32,89 @@ import (
 	"github.com/future-architect/vuls/models"
 )
 
-// JSONDirPattern is file name pattern of JSON directory
-var JSONDirPattern = regexp.MustCompile(`^\d{8}_\d{4}$`)
+// jsonDirPattern is file name pattern of JSON directory
+// 2016-11-16T10:43:28+09:00
+var jsonDirPattern = regexp.MustCompile(
+	`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$`)
 
 // JSONDirs array of json files path.
-type JSONDirs []string
+type jsonDirs []string
 
-func (d JSONDirs) Len() int {
+func (d jsonDirs) Len() int {
 	return len(d)
 }
-func (d JSONDirs) Swap(i, j int) {
+func (d jsonDirs) Swap(i, j int) {
 	d[i], d[j] = d[j], d[i]
 }
-func (d JSONDirs) Less(i, j int) bool {
+func (d jsonDirs) Less(i, j int) bool {
 	return d[j] < d[i]
 }
 
 // getValidJSONDirs return valid json directory as array
-func getValidJSONDirs() (jsonDirs JSONDirs, err error) {
+func lsValidJSONDirs() (dirs jsonDirs, err error) {
 	var dirInfo []os.FileInfo
 	if dirInfo, err = ioutil.ReadDir(c.Conf.ResultsDir); err != nil {
 		err = fmt.Errorf("Failed to read %s: %s", c.Conf.ResultsDir, err)
 		return
 	}
 	for _, d := range dirInfo {
-		if d.IsDir() && JSONDirPattern.MatchString(d.Name()) {
+		if d.IsDir() && jsonDirPattern.MatchString(d.Name()) {
 			jsonDir := filepath.Join(c.Conf.ResultsDir, d.Name())
-			jsonDirs = append(jsonDirs, jsonDir)
+			dirs = append(dirs, jsonDir)
 		}
 	}
-	sort.Sort(jsonDirs)
+	sort.Sort(dirs)
 	return
 }
 
-func selectScanHistory(jsonDirName string) (history models.ScanHistory, err error) {
-	var jsonDir string
-	if 0 < len(jsonDirName) {
-		jsonDir = filepath.Join(c.Conf.ResultsDir, jsonDirName)
-	} else {
-		var jsonDirs JSONDirs
-		if jsonDirs, err = getValidJSONDirs(); err != nil {
-			return
+func jsonDir(args []string) (string, error) {
+	var err error
+	if 0 < len(args) {
+		path := filepath.Join(c.Conf.ResultsDir, args[0])
+
+		var dirs jsonDirs
+		if dirs, err = lsValidJSONDirs(); err != nil {
+			return "", fmt.Errorf(
+				"Directory not found: %s, err: %s", path, err)
 		}
-		if len(jsonDirs) == 0 {
-			return history, fmt.Errorf("No scan results are found in %s", c.Conf.ResultsDir)
+
+		for _, d := range dirs {
+			splitPath := strings.Split(d, string(os.PathSeparator))
+			timedir := splitPath[len(splitPath)-1]
+			if timedir == args[0] {
+				return path, nil
+			}
 		}
-		jsonDir = jsonDirs[0]
+
+		return "", fmt.Errorf(
+			"Directory not found: %s, err : %s", path, err)
 	}
-	if history, err = loadOneScanHistory(jsonDir); err != nil {
-		return
+
+	// PIPE
+	stat, _ := os.Stdin.Stat()
+	if (stat.Mode() & os.ModeCharDevice) == 0 {
+		bytes, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return "", fmt.Errorf("Failed to read stdin: %s", err)
+		}
+		fields := strings.Fields(string(bytes))
+		if 0 < len(fields) {
+			return filepath.Join(c.Conf.ResultsDir, fields[0]), nil
+		}
+
+		return "", fmt.Errorf("stdin is invalid: %s", string(bytes))
 	}
-	return
+
+	// No args
+	var dirs jsonDirs
+	if dirs, err = lsValidJSONDirs(); err != nil {
+		return "", fmt.Errorf("Directory not found. err: %s", err)
+	}
+	if len(dirs) == 0 {
+		return "", fmt.Errorf("No results under %s, err: %s",
+			filepath.Join(c.Conf.ResultsDir, dirs[0]), err)
+	}
+	return dirs[0], nil
 }
 
 // loadOneScanHistory read JSON data

@@ -20,44 +20,12 @@ package report
 import (
 	"bytes"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/future-architect/vuls/config"
 	"github.com/future-architect/vuls/models"
 	"github.com/gosuri/uitable"
 )
-
-func ensureResultDir(scannedAt time.Time) (path string, err error) {
-	jsonDirName := scannedAt.Format(time.RFC3339)
-
-	resultsDir := config.Conf.ResultsDir
-	if len(resultsDir) == 0 {
-		wd, _ := os.Getwd()
-		resultsDir = filepath.Join(wd, "results")
-	}
-	jsonDir := filepath.Join(resultsDir, jsonDirName)
-
-	if err := os.MkdirAll(jsonDir, 0700); err != nil {
-		return "", fmt.Errorf("Failed to create dir: %s", err)
-	}
-
-	symlinkPath := filepath.Join(resultsDir, "current")
-	if _, err := os.Lstat(symlinkPath); err == nil {
-		if err := os.Remove(symlinkPath); err != nil {
-			return "", fmt.Errorf(
-				"Failed to remove symlink. path: %s, err: %s", symlinkPath, err)
-		}
-	}
-
-	if err := os.Symlink(jsonDir, symlinkPath); err != nil {
-		return "", fmt.Errorf(
-			"Failed to create symlink: path: %s, err: %s", symlinkPath, err)
-	}
-	return jsonDir, nil
-}
 
 func toPlainText(scanResult models.ScanResult) (string, error) {
 	serverInfo := scanResult.ServerInfo()

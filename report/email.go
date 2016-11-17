@@ -31,57 +31,55 @@ import (
 // EMailWriter send mail
 type EMailWriter struct{}
 
-func (w EMailWriter) Write(scanResults []models.ScanResult) (err error) {
+func (w EMailWriter) Write(r models.ScanResult) (err error) {
 	conf := config.Conf
-	for _, s := range scanResults {
-		to := strings.Join(conf.Mail.To[:], ", ")
-		cc := strings.Join(conf.Mail.Cc[:], ", ")
-		mailAddresses := append(conf.Mail.To, conf.Mail.Cc...)
-		if _, err := mail.ParseAddressList(strings.Join(mailAddresses[:], ", ")); err != nil {
-			return fmt.Errorf("Failed to parse email addresses: %s", err)
-		}
+	to := strings.Join(conf.EMail.To[:], ", ")
+	cc := strings.Join(conf.EMail.Cc[:], ", ")
+	mailAddresses := append(conf.EMail.To, conf.EMail.Cc...)
+	if _, err := mail.ParseAddressList(strings.Join(mailAddresses[:], ", ")); err != nil {
+		return fmt.Errorf("Failed to parse email addresses: %s", err)
+	}
 
-		subject := fmt.Sprintf("%s%s %s",
-			conf.Mail.SubjectPrefix,
-			s.ServerInfo(),
-			s.CveSummary(),
-		)
+	subject := fmt.Sprintf("%s%s %s",
+		conf.EMail.SubjectPrefix,
+		r.ServerInfo(),
+		r.CveSummary(),
+	)
 
-		headers := make(map[string]string)
-		headers["From"] = conf.Mail.From
-		headers["To"] = to
-		headers["Cc"] = cc
-		headers["Subject"] = subject
+	headers := make(map[string]string)
+	headers["From"] = conf.EMail.From
+	headers["To"] = to
+	headers["Cc"] = cc
+	headers["Subject"] = subject
 
-		var message string
-		for k, v := range headers {
-			message += fmt.Sprintf("%s: %s\r\n", k, v)
-		}
+	var message string
+	for k, v := range headers {
+		message += fmt.Sprintf("%s: %s\r\n", k, v)
+	}
 
-		var body string
-		if body, err = toPlainText(s); err != nil {
-			return err
-		}
-		message += "\r\n" + body
+	var body string
+	if body, err = toPlainText(r); err != nil {
+		return err
+	}
+	message += "\r\n" + body
 
-		smtpServer := net.JoinHostPort(conf.Mail.SMTPAddr, conf.Mail.SMTPPort)
+	smtpServer := net.JoinHostPort(conf.EMail.SMTPAddr, conf.EMail.SMTPPort)
 
-		err := smtp.SendMail(
-			smtpServer,
-			smtp.PlainAuth(
-				"",
-				conf.Mail.User,
-				conf.Mail.Password,
-				conf.Mail.SMTPAddr,
-			),
-			conf.Mail.From,
-			conf.Mail.To,
-			[]byte(message),
-		)
+	err = smtp.SendMail(
+		smtpServer,
+		smtp.PlainAuth(
+			"",
+			conf.EMail.User,
+			conf.EMail.Password,
+			conf.EMail.SMTPAddr,
+		),
+		conf.EMail.From,
+		conf.EMail.To,
+		[]byte(message),
+	)
 
-		if err != nil {
-			return fmt.Errorf("Failed to send emails: %s", err)
-		}
+	if err != nil {
+		return fmt.Errorf("Failed to send emails: %s", err)
 	}
 	return nil
 }

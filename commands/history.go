@@ -69,11 +69,11 @@ func (p *HistoryCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{
 	c.Conf.ResultsDir = p.resultsDir
 
 	var err error
-	var jsonDirs JSONDirs
-	if jsonDirs, err = getValidJSONDirs(); err != nil {
+	var dirs jsonDirs
+	if dirs, err = lsValidJSONDirs(); err != nil {
 		return subcommands.ExitFailure
 	}
-	for _, d := range jsonDirs {
+	for _, d := range dirs {
 		var files []os.FileInfo
 		if files, err = ioutil.ReadDir(d); err != nil {
 			return subcommands.ExitFailure

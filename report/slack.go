@@ -56,40 +56,38 @@ type message struct {
 // SlackWriter send report to slack
 type SlackWriter struct{}
 
-func (w SlackWriter) Write(scanResults []models.ScanResult) error {
+func (w SlackWriter) Write(r models.ScanResult) error {
 	conf := config.Conf.Slack
-	for _, s := range scanResults {
-		channel := conf.Channel
-		if channel == "${servername}" {
-			channel = fmt.Sprintf("#%s", s.ServerName)
-		}
+	channel := conf.Channel
+	if channel == "${servername}" {
+		channel = fmt.Sprintf("#%s", r.ServerName)
+	}
 
-		msg := message{
-			Text:        msgText(s),
-			Username:    conf.AuthUser,
-			IconEmoji:   conf.IconEmoji,
-			Channel:     channel,
-			Attachments: toSlackAttachments(s),
-		}
+	msg := message{
+		Text:        msgText(r),
+		Username:    conf.AuthUser,
+		IconEmoji:   conf.IconEmoji,
+		Channel:     channel,
+		Attachments: toSlackAttachments(r),
+	}
 
-		bytes, _ := json.Marshal(msg)
-		jsonBody := string(bytes)
-		f := func() (err error) {
-			resp, body, errs := gorequest.New().Proxy(config.Conf.HTTPProxy).Post(conf.HookURL).Send(string(jsonBody)).End()
-			if 0 < len(errs) || resp == nil || resp.StatusCode != 200 {
-				return fmt.Errorf(
-					"HTTP POST error: %v, url: %s, resp: %v, body: %s",
-					errs, conf.HookURL, resp, body)
-			}
-			return nil
+	bytes, _ := json.Marshal(msg)
+	jsonBody := string(bytes)
+	f := func() (err error) {
+		resp, body, errs := gorequest.New().Proxy(config.Conf.HTTPProxy).Post(conf.HookURL).Send(string(jsonBody)).End()
+		if 0 < len(errs) || resp == nil || resp.StatusCode != 200 {
+			return fmt.Errorf(
+				"HTTP POST error: %v, url: %s, resp: %v, body: %s",
+				errs, conf.HookURL, resp, body)
 		}
-		notify := func(err error, t time.Duration) {
-			log.Warn("Error %s", err)
-			log.Warn("Retrying in ", t)
-		}
-		if err := backoff.RetryNotify(f, backoff.NewExponentialBackOff(), notify); err != nil {
-			return fmt.Errorf("HTTP Error: %s", err)
-		}
+		return nil
+	}
+	notify := func(err error, t time.Duration) {
+		log.Warn("Error %s", err)
+		log.Warn("Retrying in ", t)
+	}
+	if err := backoff.RetryNotify(f, backoff.NewExponentialBackOff(), notify); err != nil {
+		return fmt.Errorf("HTTP Error: %s", err)
 	}
 	return nil
 }

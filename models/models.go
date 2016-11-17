@@ -55,21 +55,6 @@ func (s ScanResults) Less(i, j int) bool {
 	return s[i].ServerName < s[j].ServerName
 }
 
-// FilterByCvssOver is filter function.
-func (s ScanResults) FilterByCvssOver() (filtered ScanResults) {
-	for _, result := range s {
-		cveInfos := []CveInfo{}
-		for _, cveInfo := range result.KnownCves {
-			if config.Conf.CvssScoreOver < cveInfo.CveDetail.CvssScore(config.Conf.Lang) {
-				cveInfos = append(cveInfos, cveInfo)
-			}
-		}
-		result.KnownCves = cveInfos
-		filtered = append(filtered, result)
-	}
-	return
-}
-
 // ScanResult has the result of scanned CVE information.
 type ScanResult struct {
 	gorm.Model    `json:"-" xml:"-"`
@@ -92,6 +77,18 @@ type ScanResult struct {
 	IgnoredCves []CveInfo
 
 	Optional [][]interface{} `gorm:"-"`
+}
+
+// FilterByCvssOver is filter function.
+func (r ScanResult) FilterByCvssOver() ScanResult {
+	cveInfos := []CveInfo{}
+	for _, cveInfo := range r.KnownCves {
+		if config.Conf.CvssScoreOver < cveInfo.CveDetail.CvssScore(config.Conf.Lang) {
+			cveInfos = append(cveInfos, cveInfo)
+		}
+	}
+	r.KnownCves = cveInfos
+	return r
 }
 
 // ServerInfo returns server name one line

@@ -20,6 +20,7 @@ package report
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"time"
 
@@ -27,11 +28,14 @@ import (
 
 	c "github.com/future-architect/vuls/config"
 	"github.com/future-architect/vuls/models"
-	"github.com/future-architect/vuls/util"
 )
 
 // AzureBlobWriter writes results to AzureBlob
-type AzureBlobWriter struct{}
+type AzureBlobWriter struct {
+	FormatXML       bool
+	FormatPlainText bool
+	FormatJSON      bool
+}
 
 // CheckIfAzureContainerExists check the existence of Azure storage container
 func CheckIfAzureContainerExists() error {
@@ -58,83 +62,78 @@ func getBlobClient() (storage.BlobStorageClient, error) {
 }
 
 // Write results to Azure Blob storage
-func (w AzureBlobWriter) Write(scanResults []models.ScanResult) (err error) {
-	reqChan := make(chan models.ScanResult, len(scanResults))
-	resChan := make(chan bool)
-	errChan := make(chan error, len(scanResults))
-	defer close(resChan)
-	defer close(errChan)
-	defer close(reqChan)
-
-	timeout := time.After(10 * 60 * time.Second)
-	concurrency := 10
-	tasks := util.GenWorkers(concurrency)
-
-	go func() {
-		for _, r := range scanResults {
-			reqChan <- r
-		}
-	}()
-
-	for range scanResults {
-		tasks <- func() {
-			select {
-			case sresult := <-reqChan:
-				func(r models.ScanResult) {
-					err := w.upload(r)
-					if err != nil {
-						errChan <- err
-					}
-					resChan <- true
-				}(sresult)
-			}
-		}
-	}
-
-	errs := []error{}
-	for i := 0; i < len(scanResults); i++ {
-		select {
-		case <-resChan:
-		case err := <-errChan:
-			errs = append(errs, err)
-		case <-timeout:
-			errs = append(errs, fmt.Errorf("Timeout while uploading to azure Blob"))
-		}
-	}
-
-	if 0 < len(errs) {
-		return fmt.Errorf("Failed to upload json to Azure Blob: %v", errs)
-	}
-	return nil
-}
-
-func (w AzureBlobWriter) upload(res models.ScanResult) (err error) {
+func (w AzureBlobWriter) Write(r models.ScanResult) (err error) {
 	cli, err := getBlobClient()
 	if err != nil {
 		return err
 	}
-	timestr := time.Now().Format(time.RFC3339)
+
+	timestr := r.ScannedAt.Format(time.RFC3339)
 	name := ""
-	if len(res.Container.ContainerID) == 0 {
-		name = fmt.Sprintf("%s/%s.json", timestr, res.ServerName)
+	if len(r.Container.ContainerID) == 0 {
+		name = fmt.Sprintf("%s/%s", timestr, r.ServerName)
 	} else {
-		name = fmt.Sprintf("%s/%s_%s.json", timestr, res.ServerName, res.Container.Name)
+		name = fmt.Sprintf("%s/%s@%s", timestr, r.Container.Name, r.ServerName)
 	}
 
-	jsonBytes, err := json.Marshal(res)
-	if err != nil {
-		return fmt.Errorf("Failed to Marshal to JSON: %s", err)
+	if w.FormatJSON {
+		k := name + ".json"
+		var b []byte
+		if b, err = json.Marshal(r); err != nil {
+			return fmt.Errorf("Failed to Marshal to JSON: %s", err)
+		}
+
+		if err = cli.CreateBlockBlobFromReader(
+			c.Conf.AzureContainer,
+			k,
+			uint64(len(b)),
+			bytes.NewReader(b),
+			map[string]string{},
+		); err != nil {
+			return fmt.Errorf("%s/%s, %s",
+				c.Conf.AzureContainer, k, err)
+		}
 	}
 
-	if err = cli.CreateBlockBlobFromReader(
-		c.Conf.AzureContainer,
-		name,
-		uint64(len(jsonBytes)),
-		bytes.NewReader(jsonBytes),
-		map[string]string{},
-	); err != nil {
-		return fmt.Errorf("%s/%s, %s",
-			c.Conf.AzureContainer, name, err)
+	if w.FormatPlainText {
+		k := name + ".txt"
+		text, err := toPlainText(r)
+		if err != nil {
+			return err
+		}
+		b := []byte(text)
+
+		if err = cli.CreateBlockBlobFromReader(
+			c.Conf.AzureContainer,
+			k,
+			uint64(len(b)),
+			bytes.NewReader(b),
+			map[string]string{},
+		); err != nil {
+			return fmt.Errorf("%s/%s, %s",
+				c.Conf.AzureContainer, k, err)
+		}
 	}
+
+	if w.FormatXML {
+		k := name + ".xml"
+		var b []byte
+		if b, err = xml.Marshal(r); err != nil {
+			return fmt.Errorf("Failed to Marshal to XML: %s", err)
+		}
+		allBytes := bytes.Join([][]byte{[]byte(xml.Header + vulsOpenTag), b, []byte(vulsCloseTag)}, []byte{})
+
+		if err = cli.CreateBlockBlobFromReader(
+			c.Conf.AzureContainer,
+			k,
+			uint64(len(allBytes)),
+			bytes.NewReader(allBytes),
+			map[string]string{},
+		); err != nil {
+			return fmt.Errorf("%s/%s, %s",
+				c.Conf.AzureContainer, k, err)
+		}
+	}
+
 	return
 }

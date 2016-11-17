@@ -23,9 +23,10 @@ type XMLWriter struct {
 
 func (w XMLWriter) Write(scanResults []models.ScanResult) (err error) {
 	var path string
-	if path, err = ensureResultDir(w.ScannedAt); err != nil {
-		return fmt.Errorf("Failed to make direcotory/symlink : %s", err)
-	}
+	//TODO
+	//  if path, err = ensureResultDir(w.ScannedAt); err != nil {
+	//      return fmt.Errorf("Failed to make direcotory/symlink : %s", err)
+	//  }
 
 	for _, scanResult := range scanResults {
 		scanResult.ScannedAt = w.ScannedAt

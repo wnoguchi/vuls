@@ -43,7 +43,7 @@ func (c TOMLLoader) Load(pathToToml, keyPass string) error {
 		return err
 	}
 
-	Conf.Mail = conf.Mail
+	Conf.EMail = conf.EMail
 	Conf.Slack = conf.Slack
 
 	d := conf.Default

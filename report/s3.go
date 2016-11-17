@@ -20,6 +20,7 @@ package report
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"time"
 
@@ -58,7 +59,11 @@ func CheckIfBucketExists() error {
 }
 
 // S3Writer writes results to S3
-type S3Writer struct{}
+type S3Writer struct {
+	FormatXML       bool
+	FormatPlainText bool
+	FormatJSON      bool
+}
 
 func getS3() *s3.S3 {
 	return s3.New(session.New(&aws.Config{
@@ -68,35 +73,67 @@ func getS3() *s3.S3 {
 }
 
 // Write results to S3
-func (w S3Writer) Write(scanResults []models.ScanResult) (err error) {
+// http://docs.aws.amazon.com/sdk-for-go/latest/v1/developerguide/common-examples.title.html
+// TODO Refactoring
+func (w S3Writer) Write(r models.ScanResult) (err error) {
+	svc := getS3()
 
-	var jsonBytes []byte
-	if jsonBytes, err = json.Marshal(scanResults); err != nil {
-		return fmt.Errorf("Failed to Marshal to JSON: %s", err)
+	timestr := r.ScannedAt.Format(time.RFC3339)
+	var key string
+	if len(r.Container.ContainerID) == 0 {
+		key = fmt.Sprintf("%s/%s", timestr, r.ServerName)
+	} else {
+		key = fmt.Sprintf("%s/%s@%s", timestr, r.Container.Name, r.ServerName)
 	}
 
-	// http://docs.aws.amazon.com/sdk-for-go/latest/v1/developerguide/common-examples.title.html
-	svc := getS3()
-	timestr := time.Now().Format(time.RFC3339)
-	for _, r := range scanResults {
-		key := ""
-		if len(r.Container.ContainerID) == 0 {
-			key = fmt.Sprintf("%s/%s.json", timestr, r.ServerName)
-		} else {
-			key = fmt.Sprintf("%s/%s_%s.json", timestr, r.ServerName, r.Container.Name)
-		}
-
-		if jsonBytes, err = json.Marshal(r); err != nil {
+	if w.FormatJSON {
+		k := key + ".json"
+		var b []byte
+		if b, err = json.Marshal(r); err != nil {
 			return fmt.Errorf("Failed to Marshal to JSON: %s", err)
 		}
 		_, err = svc.PutObject(&s3.PutObjectInput{
 			Bucket: &c.Conf.S3Bucket,
-			Key:    &key,
-			Body:   bytes.NewReader(jsonBytes),
+			Key:    &k,
+			Body:   bytes.NewReader(b),
 		})
 		if err != nil {
 			return fmt.Errorf("Failed to upload data to %s/%s, %s", c.Conf.S3Bucket, key, err)
 		}
 	}
+
+	if w.FormatPlainText {
+		k := key + ".txt"
+		text, err := toPlainText(r)
+		if err != nil {
+			return err
+		}
+		_, err = svc.PutObject(&s3.PutObjectInput{
+			Bucket: &c.Conf.S3Bucket,
+			Key:    &k,
+			Body:   bytes.NewReader([]byte(text)),
+		})
+		if err != nil {
+			return fmt.Errorf("Failed to upload data to %s/%s, %s", c.Conf.S3Bucket, key, err)
+		}
+	}
+
+	if w.FormatXML {
+		k := key + ".xml"
+		var b []byte
+		if b, err = xml.Marshal(r); err != nil {
+			return fmt.Errorf("Failed to Marshal to XML: %s", err)
+		}
+		allBytes := bytes.Join([][]byte{[]byte(xml.Header + vulsOpenTag), b, []byte(vulsCloseTag)}, []byte{})
+		_, err = svc.PutObject(&s3.PutObjectInput{
+			Bucket: &c.Conf.S3Bucket,
+			Key:    &k,
+			Body:   bytes.NewReader(allBytes),
+		})
+		if err != nil {
+			return fmt.Errorf("Failed to upload data to %s/%s, %s", c.Conf.S3Bucket, key, err)
+		}
+	}
+
 	return nil
 }

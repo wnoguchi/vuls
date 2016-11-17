@@ -21,11 +21,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	c "github.com/future-architect/vuls/config"
@@ -192,19 +189,16 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 
 	// logger
 	Log := util.NewCustomLogger(c.ServerInfo{})
-	scannedAt := time.Now()
 
-	//TODO  Create Formatter xmlFormatter, JSONFormatter, TextFormatter, DetailFormatter, SummaryFormatter under report directory
-	if p.formatJSON {
-		//  reports = append(reports, report.JSONWriter{ScannedAt: scannedAt})
-	}
-	//TODO
-	if p.formatXML {
-		//  reports = append(reports, report.XMLWriter{ScannedAt: scannedAt})
-	}
-	//TODO
-	if p.formatPlainText {
-		//  reports = append(reports, report.TextFileWriter{ScannedAt: scannedAt})
+	c.Conf.ResultsDir = p.resultsDir
+	c.Conf.CvssScoreOver = p.cvssScoreOver
+	c.Conf.IgnoreUnscoredCves = p.ignoreUnscoredCves
+	c.Conf.HTTPProxy = p.httpProxy
+
+	jsonDir, err := jsonDir(f.Args())
+	if err != nil {
+		log.Errorf("Failed to read from JSON: %s", err)
+		return subcommands.ExitFailure
 	}
 
 	// report
@@ -218,8 +212,13 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 		reports = append(reports, report.EMailWriter{})
 	}
 	if p.toLocalFile {
-		reports = append(reports, report.TextFileWriter{ScannedAt: scannedAt})
+		reports = append(reports, report.LocalFileWriter{
+			CurrentDir:      jsonDir,
+			FormatXML:       p.formatXML,
+			FormatPlainText: p.formatPlainText,
+		})
 	}
+
 	if p.toS3 {
 		c.Conf.AwsRegion = p.awsRegion
 		c.Conf.AwsProfile = p.awsProfile
@@ -229,8 +228,13 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 			Log.Error("Ensure the bucket or check AWS config before scanning")
 			return subcommands.ExitUsageError
 		}
-		reports = append(reports, report.S3Writer{})
+		reports = append(reports, report.S3Writer{
+			FormatXML:       p.formatXML,
+			FormatJSON:      p.formatJSON,
+			FormatPlainText: p.formatPlainText,
+		})
 	}
+
 	if p.toAzureBlob {
 		c.Conf.AzureAccount = p.azureAccount
 		if len(c.Conf.AzureAccount) == 0 {
@@ -252,61 +256,30 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 			Log.Error("Ensure the container or check Azure config before scanning")
 			return subcommands.ExitUsageError
 		}
-		reports = append(reports, report.AzureBlobWriter{})
+		reports = append(reports, report.AzureBlobWriter{
+			FormatXML:       p.formatXML,
+			FormatJSON:      p.formatJSON,
+			FormatPlainText: p.formatPlainText,
+		})
 	}
 
-	c.Conf.ResultsDir = p.resultsDir
-	c.Conf.CvssScoreOver = p.cvssScoreOver
-	c.Conf.IgnoreUnscoredCves = p.ignoreUnscoredCves
-	c.Conf.HTTPProxy = p.httpProxy
+	// TODO JSONから１ファイル読んで送って閉じる 性能考えて
+	// Go routine
+	history, err := loadOneScanHistory(jsonDir)
 
-	// JSON Dir
-	// TODO refactoring commands/tui.go
-	var jsonDirName string
-	var err error
-	if 0 < len(f.Args()) {
-		var jsonDirs JSONDirs
-		if jsonDirs, err = getValidJSONDirs(); err != nil {
+	for _, r := range history.ScanResults {
+		if err != nil {
+			log.Errorf("Failed to read from JSON: %s", err)
 			return subcommands.ExitFailure
 		}
-		for _, d := range jsonDirs {
-			splitPath := strings.Split(d, string(os.PathSeparator))
-			if splitPath[len(splitPath)-1] == f.Args()[0] {
-				jsonDirName = f.Args()[0]
-				break
-			}
-		}
-		if len(jsonDirName) == 0 {
-			log.Errorf("First Argument have to be JSON directory name : %s", err)
-			return subcommands.ExitFailure
-		}
-	} else {
-		stat, _ := os.Stdin.Stat()
-		if (stat.Mode() & os.ModeCharDevice) == 0 {
-			bytes, err := ioutil.ReadAll(os.Stdin)
-			if err != nil {
-				log.Errorf("Failed to read stdin: %s", err)
+
+		Log.Info("Reporting...")
+		filtered := r.FilterByCvssOver()
+		for _, w := range reports {
+			if err := w.Write(filtered); err != nil {
+				Log.Fatalf("Failed to report, err: %s", err)
 				return subcommands.ExitFailure
 			}
-			fields := strings.Fields(string(bytes))
-			if 0 < len(fields) {
-				jsonDirName = fields[0]
-			}
-		}
-	}
-
-	history, err := selectScanHistory(jsonDirName)
-	if err != nil {
-		log.Errorf("Failed to read from JSON: %s", err)
-		return subcommands.ExitFailure
-	}
-
-	Log.Info("Reporting...")
-	filtered := history.ScanResults.FilterByCvssOver()
-	for _, w := range reports {
-		if err := w.Write(filtered); err != nil {
-			Log.Fatalf("Failed to report, err: %s", err)
-			return subcommands.ExitFailure
 		}
 	}
 

@@ -20,10 +20,8 @@ package commands
 import (
 	"context"
 	"flag"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	c "github.com/future-architect/vuls/config"
@@ -69,40 +67,13 @@ func (p *TuiCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) s
 	c.Conf.DebugSQL = p.debugSQL
 	c.Conf.ResultsDir = p.resultsDir
 
-	var jsonDirName string
-	var err error
-	if 0 < len(f.Args()) {
-		var jsonDirs JSONDirs
-		if jsonDirs, err = getValidJSONDirs(); err != nil {
-			return subcommands.ExitFailure
-		}
-		for _, d := range jsonDirs {
-			splitPath := strings.Split(d, string(os.PathSeparator))
-			if splitPath[len(splitPath)-1] == f.Args()[0] {
-				jsonDirName = f.Args()[0]
-				break
-			}
-		}
-		if len(jsonDirName) == 0 {
-			log.Errorf("First Argument have to be JSON directory name : %s", err)
-			return subcommands.ExitFailure
-		}
-	} else {
-		stat, _ := os.Stdin.Stat()
-		if (stat.Mode() & os.ModeCharDevice) == 0 {
-			bytes, err := ioutil.ReadAll(os.Stdin)
-			if err != nil {
-				log.Errorf("Failed to read stdin: %s", err)
-				return subcommands.ExitFailure
-			}
-			fields := strings.Fields(string(bytes))
-			if 0 < len(fields) {
-				jsonDirName = fields[0]
-			}
-		}
+	jsonDir, err := jsonDir(f.Args())
+	if err != nil {
+		log.Errorf("Failed to read json dir under results: %s", err)
+		return subcommands.ExitFailure
 	}
 
-	history, err := selectScanHistory(jsonDirName)
+	history, err := loadOneScanHistory(jsonDir)
 	if err != nil {
 		log.Errorf("Failed to read from JSON: %s", err)
 		return subcommands.ExitFailure

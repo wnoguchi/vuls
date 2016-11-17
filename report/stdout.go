@@ -26,13 +26,11 @@ import (
 // StdoutWriter write to stdout
 type StdoutWriter struct{}
 
-func (w StdoutWriter) Write(scanResults []models.ScanResult) error {
-	for _, s := range scanResults {
-		text, err := toPlainText(s)
-		if err != nil {
-			return err
-		}
-		fmt.Println(text)
+func (w StdoutWriter) Write(r models.ScanResult) error {
+	text, err := toPlainText(r)
+	if err != nil {
+		return err
 	}
+	fmt.Println(text)
 	return nil
 }
