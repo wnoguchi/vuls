@@ -562,6 +562,7 @@ func scanVulns(jsonDir string, scannedAt time.Time) []error {
 		if err := o.scanPackages(); err != nil {
 			return err
 		}
+
 		if err := o.scanVulnByCpeName(); err != nil {
 			return err
 		}
@@ -577,7 +578,8 @@ func scanVulns(jsonDir string, scannedAt time.Time) []error {
 			FormatJSON: true,
 		}
 		if err := w.Write(r); err != nil {
-			return fmt.Errorf("Failed to write to JSON file, err: %s", err)
+			return fmt.Errorf("Failed to write to JSON file, err: %s, dir: %s",
+				err, jsonDir)
 		}
 		return nil
 	}, timeoutSec)
@@ -592,8 +594,6 @@ func ensureResultDir(scannedAt time.Time) (currentDir string, err error) {
 		resultsDir = filepath.Join(wd, "results")
 	}
 	jsonDir := filepath.Join(resultsDir, jsonDirName)
-
-	// TODO Check if the directory has already existed?
 	if err := os.MkdirAll(jsonDir, 0700); err != nil {
 		return "", fmt.Errorf("Failed to create dir: %s", err)
 	}

@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -78,14 +77,7 @@ func getS3() *s3.S3 {
 func (w S3Writer) Write(r models.ScanResult) (err error) {
 	svc := getS3()
 
-	timestr := r.ScannedAt.Format(time.RFC3339)
-	var key string
-	if len(r.Container.ContainerID) == 0 {
-		key = fmt.Sprintf("%s/%s", timestr, r.ServerName)
-	} else {
-		key = fmt.Sprintf("%s/%s@%s", timestr, r.Container.Name, r.ServerName)
-	}
-
+	key := r.ReportKeyName()
 	if w.FormatJSON {
 		k := key + ".json"
 		var b []byte

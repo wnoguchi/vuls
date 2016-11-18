@@ -205,12 +205,15 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 	reports := []report.ResultWriter{
 		report.StdoutWriter{},
 	}
+
 	if p.toSlack {
 		reports = append(reports, report.SlackWriter{})
 	}
+
 	if p.toEMail {
 		reports = append(reports, report.EMailWriter{})
 	}
+
 	if p.toLocalFile {
 		reports = append(reports, report.LocalFileWriter{
 			CurrentDir:      jsonDir,
@@ -224,8 +227,7 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 		c.Conf.AwsProfile = p.awsProfile
 		c.Conf.S3Bucket = p.awsS3Bucket
 		if err := report.CheckIfBucketExists(); err != nil {
-			Log.Errorf("Failed to access to the S3 bucket. err: %s", err)
-			Log.Error("Ensure the bucket or check AWS config before scanning")
+			Log.Errorf("Check if there is a bucket beforehand: %s, err: %s", c.Conf.S3Bucket, err)
 			return subcommands.ExitUsageError
 		}
 		reports = append(reports, report.S3Writer{
@@ -252,8 +254,7 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 			return subcommands.ExitUsageError
 		}
 		if err := report.CheckIfAzureContainerExists(); err != nil {
-			Log.Errorf("Failed to access to the Azure Blob container. err: %s", err)
-			Log.Error("Ensure the container or check Azure config before scanning")
+			Log.Errorf("Check if there is a container beforehand: %s, err: %s", c.Conf.AzureContainer, err)
 			return subcommands.ExitUsageError
 		}
 		reports = append(reports, report.AzureBlobWriter{

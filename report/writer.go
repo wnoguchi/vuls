@@ -33,6 +33,9 @@ const (
 	debianTrackerBaseURL  = "https://security-tracker.debian.org/tracker"
 
 	freeBSDVuXMLBaseURL = "https://vuxml.freebsd.org/freebsd/%s.html"
+
+	vulsOpenTag  = "<vulsreport>"
+	vulsCloseTag = "</vulsreport>"
 )
 
 // ResultWriter Interface

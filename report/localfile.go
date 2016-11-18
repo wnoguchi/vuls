@@ -40,13 +40,7 @@ type LocalFileWriter struct {
 //TODO defer?
 //TODO refactoring
 func (w LocalFileWriter) Write(r models.ScanResult) (err error) {
-	path := w.CurrentDir
-	if len(r.Container.ContainerID) == 0 {
-		path = filepath.Join(path, fmt.Sprintf("%s", r.ServerName))
-	} else {
-		path = filepath.Join(path,
-			fmt.Sprintf("%s@%s", r.Container.Name, r.ServerName))
-	}
+	path := filepath.Join(w.CurrentDir, r.ReportFileName())
 
 	if w.FormatJSON {
 		p := path + ".json"

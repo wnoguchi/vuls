@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"time"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
 
@@ -68,16 +67,9 @@ func (w AzureBlobWriter) Write(r models.ScanResult) (err error) {
 		return err
 	}
 
-	timestr := r.ScannedAt.Format(time.RFC3339)
-	name := ""
-	if len(r.Container.ContainerID) == 0 {
-		name = fmt.Sprintf("%s/%s", timestr, r.ServerName)
-	} else {
-		name = fmt.Sprintf("%s/%s@%s", timestr, r.Container.Name, r.ServerName)
-	}
-
+	key := r.ReportKeyName()
 	if w.FormatJSON {
-		k := name + ".json"
+		k := key + ".json"
 		var b []byte
 		if b, err = json.Marshal(r); err != nil {
 			return fmt.Errorf("Failed to Marshal to JSON: %s", err)
@@ -96,7 +88,7 @@ func (w AzureBlobWriter) Write(r models.ScanResult) (err error) {
 	}
 
 	if w.FormatPlainText {
-		k := name + ".txt"
+		k := key + ".txt"
 		text, err := toPlainText(r)
 		if err != nil {
 			return err
@@ -116,7 +108,7 @@ func (w AzureBlobWriter) Write(r models.ScanResult) (err error) {
 	}
 
 	if w.FormatXML {
-		k := name + ".xml"
+		k := key + ".xml"
 		var b []byte
 		if b, err = xml.Marshal(r); err != nil {
 			return fmt.Errorf("Failed to Marshal to XML: %s", err)

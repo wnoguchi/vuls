@@ -51,6 +51,7 @@ func (d jsonDirs) Less(i, j int) bool {
 }
 
 // getValidJSONDirs return valid json directory as array
+// Returned array is sorted so that recent directories are at the head
 func lsValidJSONDirs() (dirs jsonDirs, err error) {
 	var dirInfo []os.FileInfo
 	if dirInfo, err = ioutil.ReadDir(c.Conf.ResultsDir); err != nil {
@@ -69,15 +70,13 @@ func lsValidJSONDirs() (dirs jsonDirs, err error) {
 
 func jsonDir(args []string) (string, error) {
 	var err error
+	var dirs jsonDirs
 	if 0 < len(args) {
-		path := filepath.Join(c.Conf.ResultsDir, args[0])
-
-		var dirs jsonDirs
 		if dirs, err = lsValidJSONDirs(); err != nil {
-			return "", fmt.Errorf(
-				"Directory not found: %s, err: %s", path, err)
+			return "", err
 		}
 
+		path := filepath.Join(c.Conf.ResultsDir, args[0])
 		for _, d := range dirs {
 			splitPath := strings.Split(d, string(os.PathSeparator))
 			timedir := splitPath[len(splitPath)-1]
@@ -86,8 +85,7 @@ func jsonDir(args []string) (string, error) {
 			}
 		}
 
-		return "", fmt.Errorf(
-			"Directory not found: %s, err : %s", path, err)
+		return "", fmt.Errorf("Invalid path: %s", path)
 	}
 
 	// PIPE
@@ -101,18 +99,16 @@ func jsonDir(args []string) (string, error) {
 		if 0 < len(fields) {
 			return filepath.Join(c.Conf.ResultsDir, fields[0]), nil
 		}
-
-		return "", fmt.Errorf("stdin is invalid: %s", string(bytes))
+		return "", fmt.Errorf("Stdin is invalid: %s", string(bytes))
 	}
 
-	// No args
-	var dirs jsonDirs
+	// No args returns latest dir
 	if dirs, err = lsValidJSONDirs(); err != nil {
-		return "", fmt.Errorf("Directory not found. err: %s", err)
+		return "", err
 	}
 	if len(dirs) == 0 {
-		return "", fmt.Errorf("No results under %s, err: %s",
-			filepath.Join(c.Conf.ResultsDir, dirs[0]), err)
+		return "", fmt.Errorf("No results under %s",
+			c.Conf.ResultsDir)
 	}
 	return dirs[0], nil
 }

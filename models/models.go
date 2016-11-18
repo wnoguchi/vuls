@@ -91,6 +91,23 @@ func (r ScanResult) FilterByCvssOver() ScanResult {
 	return r
 }
 
+// ReportFileName returns the filename on localhost without extention
+func (r ScanResult) ReportFileName() (name string) {
+	if len(r.Container.ContainerID) == 0 {
+		return fmt.Sprintf("%s", r.ServerName)
+	}
+	return fmt.Sprintf("%s@%s", r.Container.Name, r.ServerName)
+}
+
+// ReportKeyName returns the name of key on S3, Azure-Blob without extention
+func (r ScanResult) ReportKeyName() (name string) {
+	timestr := r.ScannedAt.Format(time.RFC3339)
+	if len(r.Container.ContainerID) == 0 {
+		return fmt.Sprintf("%s/%s", timestr, r.ServerName)
+	}
+	return fmt.Sprintf("%s/%s@%s", timestr, r.Container.Name, r.ServerName)
+}
+
 // ServerInfo returns server name one line
 func (r ScanResult) ServerInfo() string {
 	hostinfo := ""
