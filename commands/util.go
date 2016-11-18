@@ -36,9 +36,10 @@ import (
 var jsonDirPattern = regexp.MustCompile(
 	`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$`)
 
-// JSONDirs array of json files path.
+// JSONDirs is array of json files path.
 type jsonDirs []string
 
+// sort as recent directories are at the head
 func (d jsonDirs) Len() int {
 	return len(d)
 }
@@ -67,9 +68,14 @@ func lsValidJSONDirs() (dirs jsonDirs, err error) {
 	return
 }
 
+// jsonDir returns
+// If there is an arg, check if it is a valid format and return the corresponding path under results.
+// If passed via PIPE (such as history subcommand), return that path.
+// Otherwise, returns the path of the latest directory
 func jsonDir(args []string) (string, error) {
 	var err error
 	var dirs jsonDirs
+
 	if 0 < len(args) {
 		if dirs, err = lsValidJSONDirs(); err != nil {
 			return "", err
@@ -77,8 +83,8 @@ func jsonDir(args []string) (string, error) {
 
 		path := filepath.Join(c.Conf.ResultsDir, args[0])
 		for _, d := range dirs {
-			splitPath := strings.Split(d, string(os.PathSeparator))
-			timedir := splitPath[len(splitPath)-1]
+			ss := strings.Split(d, string(os.PathSeparator))
+			timedir := ss[len(ss)-1]
 			if timedir == args[0] {
 				return path, nil
 			}
@@ -101,7 +107,7 @@ func jsonDir(args []string) (string, error) {
 		return "", fmt.Errorf("Stdin is invalid: %s", string(bytes))
 	}
 
-	// No args returns latest dir
+	// returns latest dir when no args or no PIPE
 	if dirs, err = lsValidJSONDirs(); err != nil {
 		return "", err
 	}
@@ -114,36 +120,36 @@ func jsonDir(args []string) (string, error) {
 
 // loadOneScanHistory read JSON data
 func loadOneScanHistory(jsonDir string) (scanHistory models.ScanHistory, err error) {
-	var scanResults []models.ScanResult
+	var results []models.ScanResult
 	var files []os.FileInfo
 	if files, err = ioutil.ReadDir(jsonDir); err != nil {
 		err = fmt.Errorf("Failed to read %s: %s", jsonDir, err)
 		return
 	}
-	for _, file := range files {
-		if filepath.Ext(file.Name()) != ".json" {
+	for _, f := range files {
+		if filepath.Ext(f.Name()) != ".json" {
 			continue
 		}
-		var scanResult models.ScanResult
+		var r models.ScanResult
 		var data []byte
-		jsonPath := filepath.Join(jsonDir, file.Name())
-		if data, err = ioutil.ReadFile(jsonPath); err != nil {
-			err = fmt.Errorf("Failed to read %s: %s", jsonPath, err)
+		path := filepath.Join(jsonDir, f.Name())
+		if data, err = ioutil.ReadFile(path); err != nil {
+			err = fmt.Errorf("Failed to read %s: %s", path, err)
 			return
 		}
-		if json.Unmarshal(data, &scanResult) != nil {
-			err = fmt.Errorf("Failed to parse %s: %s", jsonPath, err)
+		if json.Unmarshal(data, &r) != nil {
+			err = fmt.Errorf("Failed to parse %s: %s", path, err)
 			return
 		}
-		scanResults = append(scanResults, scanResult)
+		results = append(results, r)
 	}
-	if len(scanResults) == 0 {
+	if len(results) == 0 {
 		err = fmt.Errorf("There is no json file under %s", jsonDir)
 		return
 	}
 
 	scanHistory = models.ScanHistory{
-		ScanResults: scanResults,
+		ScanResults: results,
 	}
 	return
 }
