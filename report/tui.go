@@ -20,6 +20,7 @@ package report
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"strings"
 	"text/template"
 	"time"
@@ -40,7 +41,7 @@ var currentDetailLimitY int
 
 // RunTui execute main logic
 func RunTui(history models.ScanHistory) subcommands.ExitStatus {
-	history = scanHistory
+	scanHistory = history
 
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
@@ -58,11 +59,11 @@ func RunTui(history models.ScanHistory) subcommands.ExitStatus {
 	g.SelFgColor = gocui.ColorBlack
 	g.Cursor = true
 
-	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
+	if err := g.MainLoop(); err != nil {
+		g.Close()
 		log.Errorf("%s", err)
-		return subcommands.ExitFailure
+		os.Exit(1)
 	}
-
 	return subcommands.ExitSuccess
 }
 
@@ -510,6 +511,9 @@ func setSideLayout(g *gocui.Gui) error {
 
 		for _, result := range scanHistory.ScanResults {
 			fmt.Fprintln(v, result.ServerInfoTui())
+		}
+		if len(scanHistory.ScanResults) == 0 {
+			return fmt.Errorf("No scan results")
 		}
 		currentScanResult = scanHistory.ScanResults[0]
 		if _, err := g.SetCurrentView("side"); err != nil {
