@@ -264,10 +264,8 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 		})
 	}
 
-	// TODO JSONから１ファイル読んで送って閉じる 性能考えて
 	// Go routine
 	history, err := loadOneScanHistory(jsonDir)
-
 	for _, r := range history.ScanResults {
 		if err != nil {
 			log.Errorf("Failed to read from JSON: %s", err)

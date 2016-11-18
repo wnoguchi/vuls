@@ -31,7 +31,6 @@ import (
 type ScanHistory struct {
 	gorm.Model
 	ScanResults ScanResults
-	ScannedAt   time.Time
 }
 
 // ScanResults is slice of ScanResult.

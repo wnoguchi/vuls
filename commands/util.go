@@ -26,7 +26,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"time"
 
 	c "github.com/future-architect/vuls/config"
 	"github.com/future-architect/vuls/models"
@@ -143,21 +142,8 @@ func loadOneScanHistory(jsonDir string) (scanHistory models.ScanHistory, err err
 		return
 	}
 
-	var scannedAt time.Time
-	if scanResults[0].ScannedAt.IsZero() {
-		splitPath := strings.Split(jsonDir, string(os.PathSeparator))
-		timeStr := splitPath[len(splitPath)-1]
-		if scannedAt, err = time.Parse(time.RFC3339, timeStr); err != nil {
-			err = fmt.Errorf("Failed to parse %s: %s", timeStr, err)
-			return
-		}
-	} else {
-		scannedAt = scanResults[0].ScannedAt
-	}
-
 	scanHistory = models.ScanHistory{
 		ScanResults: scanResults,
-		ScannedAt:   scannedAt,
 	}
 	return
 }
