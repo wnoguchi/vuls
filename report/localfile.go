@@ -27,7 +27,6 @@ import (
 
 	c "github.com/future-architect/vuls/config"
 	"github.com/future-architect/vuls/models"
-	"github.com/k0kubun/pp"
 )
 
 // LocalFileWriter writes results to file.
@@ -37,7 +36,7 @@ type LocalFileWriter struct {
 
 func (w LocalFileWriter) Write(rs ...models.ScanResult) (err error) {
 
-	if c.Conf.FormatSummaryText {
+	if c.Conf.FormatShortText {
 		path := filepath.Join(w.CurrentDir, "summary.txt")
 		text := toOneLineSummary(rs)
 		if err := ioutil.WriteFile(
@@ -62,7 +61,7 @@ func (w LocalFileWriter) Write(rs ...models.ScanResult) (err error) {
 			}
 		}
 
-		if c.Conf.FormatDetailText {
+		if c.Conf.FormatFullText {
 			p := path + ".txt"
 			text, err := toPlainText(r)
 			if err != nil {
@@ -78,7 +77,6 @@ func (w LocalFileWriter) Write(rs ...models.ScanResult) (err error) {
 
 		if c.Conf.FormatXML {
 			p := path + ".xml"
-			pp.Println(p)
 			var b []byte
 			if b, err = xml.Marshal(r); err != nil {
 				return fmt.Errorf("Failed to Marshal to XML: %s", err)

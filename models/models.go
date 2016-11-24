@@ -154,7 +154,7 @@ func (r ScanResult) ServerInfoTui() string {
 
 // CveSummary summarize the number of CVEs group by CVSSv2 Severity
 func (r ScanResult) CveSummary() string {
-	var high, middle, low, unknown int
+	var high, medium, low, unknown int
 	cves := append(r.KnownCves, r.UnknownCves...)
 	for _, cveInfo := range cves {
 		score := cveInfo.CveDetail.CvssScore(config.Conf.Lang)
@@ -162,7 +162,7 @@ func (r ScanResult) CveSummary() string {
 		case 7.0 < score:
 			high++
 		case 4.0 < score:
-			middle++
+			medium++
 		case 0 < score:
 			low++
 		default:
@@ -171,11 +171,11 @@ func (r ScanResult) CveSummary() string {
 	}
 
 	if config.Conf.IgnoreUnscoredCves {
-		return fmt.Sprintf("Total: %d (High:%d Middle:%d Low:%d)",
-			high+middle+low, high, middle, low)
+		return fmt.Sprintf("Total: %d (High:%d Medium:%d Low:%d)",
+			high+medium+low, high, medium, low)
 	}
-	return fmt.Sprintf("Total: %d (High:%d Middle:%d Low:%d ?:%d)",
-		high+middle+low+unknown, high, middle, low, unknown)
+	return fmt.Sprintf("Total: %d (High:%d Medium:%d Low:%d ?:%d)",
+		high+medium+low+unknown, high, medium, low, unknown)
 }
 
 // AllCves returns Known and Unknown CVEs

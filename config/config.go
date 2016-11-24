@@ -56,10 +56,10 @@ type Config struct {
 	CveDBPath   string
 	CacheDBPath string
 
-	FormatXML         bool
-	FormatJSON        bool
-	FormatSummaryText bool
-	FormatDetailText  bool
+	FormatXML       bool
+	FormatJSON      bool
+	FormatShortText bool
+	FormatFullText  bool
 
 	AwsProfile string
 	AwsRegion  string

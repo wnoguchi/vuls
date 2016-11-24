@@ -29,15 +29,15 @@ type StdoutWriter struct{}
 
 func (w StdoutWriter) Write(rs ...models.ScanResult) error {
 
-	if c.Conf.FormatSummaryText {
+	if c.Conf.FormatShortText {
 		fmt.Print("\n\n")
 		fmt.Println(toOneLineSummary(rs))
-		fmt.Print("\n\n")
+		fmt.Print("\n")
 		fmt.Println("To view the detail report, run ./vuls report subcommand.")
 		fmt.Println("For details, run ./vuls report -h")
 	}
 
-	if c.Conf.FormatDetailText {
+	if c.Conf.FormatFullText {
 		for _, r := range rs {
 			text, err := toPlainText(r)
 			if err != nil {

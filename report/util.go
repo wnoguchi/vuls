@@ -45,9 +45,8 @@ func toOneLineSummary(rs []models.ScanResult) string {
 	return fmt.Sprintf(template, table)
 }
 
-//TODO refactoring
-func toPlainText(scanResult models.ScanResult) (string, error) {
-	serverInfo := scanResult.ServerInfo()
+func toPlainText(r models.ScanResult) (string, error) {
+	serverInfo := r.ServerInfo()
 
 	var buffer bytes.Buffer
 	for i := 0; i < len(serverInfo); i++ {
@@ -55,24 +54,23 @@ func toPlainText(scanResult models.ScanResult) (string, error) {
 	}
 	header := fmt.Sprintf("%s\n%s", serverInfo, buffer.String())
 
-	if len(scanResult.KnownCves) == 0 && len(scanResult.UnknownCves) == 0 {
+	if len(r.KnownCves) == 0 && len(r.UnknownCves) == 0 {
 		return fmt.Sprintf(`
 %s
 No unsecure packages.
 `, header), nil
 	}
 
-	summary := ToPlainTextSummary(scanResult)
+	summary := ToPlainTextSummary(r)
 	scoredReport, unscoredReport := []string{}, []string{}
-	scoredReport, unscoredReport = toPlainTextDetails(scanResult, scanResult.Family)
-
-	scored := strings.Join(scoredReport, "\n\n")
+	scoredReport, unscoredReport = toPlainTextDetails(r, r.Family)
 
 	unscored := ""
 	if !config.Conf.IgnoreUnscoredCves {
 		unscored = strings.Join(unscoredReport, "\n\n")
 	}
 
+	scored := strings.Join(scoredReport, "\n\n")
 	detail := fmt.Sprintf(`
 %s
 
@@ -140,8 +138,8 @@ func ToPlainTextSummary(r models.ScanResult) string {
 	return fmt.Sprintf("%s", stable)
 }
 
-func toPlainTextDetails(data models.ScanResult, osFamily string) (scoredReport, unscoredReport []string) {
-	for _, cve := range data.KnownCves {
+func toPlainTextDetails(r models.ScanResult, osFamily string) (scoredReport, unscoredReport []string) {
+	for _, cve := range r.KnownCves {
 		switch config.Conf.Lang {
 		case "en":
 			if 0 < cve.CveDetail.Nvd.CvssScore() {
@@ -164,7 +162,7 @@ func toPlainTextDetails(data models.ScanResult, osFamily string) (scoredReport, 
 			}
 		}
 	}
-	for _, cve := range data.UnknownCves {
+	for _, cve := range r.UnknownCves {
 		unscoredReport = append(
 			unscoredReport, toPlainTextUnknownCve(cve, osFamily))
 	}

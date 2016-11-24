@@ -48,10 +48,10 @@ type ReportCmd struct {
 	toS3        bool
 	toAzureBlob bool
 
-	formatJSON        bool
-	formatXML         bool
-	formatSummaryText bool
-	formatDetailText  bool
+	formatJSON      bool
+	formatXML       bool
+	formatShortText bool
+	formatFullText  bool
 
 	awsProfile  string
 	awsS3Bucket string
@@ -84,8 +84,8 @@ func (*ReportCmd) Usage() string {
 		[-to-azure-blob]
 		[-format-json]
 		[-format-xml]
-		[-format-summary-text]
-		[-format-detail-text]
+		[-format-short-text]
+		[-format-full-text]
 		[-aws-profile=default]
 		[-aws-region=us-west-2]
 		[-aws-s3-bucket=bucket_name]
@@ -140,13 +140,13 @@ func (p *ReportCmd) SetFlags(f *flag.FlagSet) {
 		false,
 		fmt.Sprintf("XML format"))
 
-	f.BoolVar(&p.formatSummaryText,
-		"format-summary-text",
+	f.BoolVar(&p.formatShortText,
+		"format-short-text",
 		false,
-		fmt.Sprintf("Sumamry report in plain text"))
+		fmt.Sprintf("One line summary in plain text"))
 
-	f.BoolVar(&p.formatDetailText,
-		"format-detail-text",
+	f.BoolVar(&p.formatFullText,
+		"format-full-text",
 		false,
 		fmt.Sprintf("Detail report in plain text"))
 
@@ -155,7 +155,7 @@ func (p *ReportCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&p.toLocalFile,
 		"to-localfile",
 		false,
-		fmt.Sprintf("write report to TODO"))
+		fmt.Sprintf("Write report to localfile"))
 
 	f.BoolVar(&p.toS3,
 		"to-s3",
@@ -210,8 +210,8 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 
 	c.Conf.FormatXML = p.formatXML
 	c.Conf.FormatJSON = p.formatJSON
-	c.Conf.FormatSummaryText = p.formatSummaryText
-	c.Conf.FormatDetailText = p.formatDetailText
+	c.Conf.FormatShortText = p.formatShortText
+	c.Conf.FormatFullText = p.formatFullText
 
 	// report
 	reports := []report.ResultWriter{
