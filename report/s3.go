@@ -58,11 +58,7 @@ func CheckIfBucketExists() error {
 }
 
 // S3Writer writes results to S3
-type S3Writer struct {
-	FormatXML       bool
-	FormatPlainText bool
-	FormatJSON      bool
-}
+type S3Writer struct{}
 
 func getS3() *s3.S3 {
 	return s3.New(session.New(&aws.Config{
@@ -73,12 +69,11 @@ func getS3() *s3.S3 {
 
 // Write results to S3
 // http://docs.aws.amazon.com/sdk-for-go/latest/v1/developerguide/common-examples.title.html
-// TODO Refactoring
 func (w S3Writer) Write(r models.ScanResult) (err error) {
 	svc := getS3()
 
 	key := r.ReportKeyName()
-	if w.FormatJSON {
+	if c.Conf.FormatJSON {
 		k := key + ".json"
 		var b []byte
 		if b, err = json.Marshal(r); err != nil {
@@ -94,7 +89,7 @@ func (w S3Writer) Write(r models.ScanResult) (err error) {
 		}
 	}
 
-	if w.FormatPlainText {
+	if c.Conf.FormatSummaryText {
 		k := key + ".txt"
 		text, err := toPlainText(r)
 		if err != nil {
@@ -110,7 +105,23 @@ func (w S3Writer) Write(r models.ScanResult) (err error) {
 		}
 	}
 
-	if w.FormatXML {
+	if c.Conf.FormatDetailText {
+		k := key + ".txt"
+		text, err := toPlainText(r)
+		if err != nil {
+			return err
+		}
+		_, err = svc.PutObject(&s3.PutObjectInput{
+			Bucket: &c.Conf.S3Bucket,
+			Key:    &k,
+			Body:   bytes.NewReader([]byte(text)),
+		})
+		if err != nil {
+			return fmt.Errorf("Failed to upload data to %s/%s, %s", c.Conf.S3Bucket, key, err)
+		}
+	}
+
+	if c.Conf.FormatXML {
 		k := key + ".xml"
 		var b []byte
 		if b, err = xml.Marshal(r); err != nil {

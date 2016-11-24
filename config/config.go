@@ -56,6 +56,11 @@ type Config struct {
 	CveDBPath   string
 	CacheDBPath string
 
+	FormatXML         bool
+	FormatJSON        bool
+	FormatSummaryText bool
+	FormatDetailText  bool
+
 	AwsProfile string
 	AwsRegion  string
 	S3Bucket   string

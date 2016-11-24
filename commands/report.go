@@ -48,9 +48,10 @@ type ReportCmd struct {
 	toS3        bool
 	toAzureBlob bool
 
-	formatJSON      bool
-	formatPlainText bool
-	formatXML       bool
+	formatJSON        bool
+	formatXML         bool
+	formatSummaryText bool
+	formatDetailText  bool
 
 	awsProfile  string
 	awsS3Bucket string
@@ -83,7 +84,8 @@ func (*ReportCmd) Usage() string {
 		[-to-azure-blob]
 		[-format-json]
 		[-format-xml]
-		[-format-plaintext]
+		[-format-summary-text]
+		[-format-detail-text]
 		[-aws-profile=default]
 		[-aws-region=us-west-2]
 		[-aws-s3-bucket=bucket_name]
@@ -131,17 +133,22 @@ func (p *ReportCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&p.formatJSON,
 		"format-json",
 		false,
-		fmt.Sprintf("Write report by JSON format"))
-
-	f.BoolVar(&p.formatPlainText,
-		"format-plaintext",
-		false,
-		fmt.Sprintf("Write report by plain text format"))
+		fmt.Sprintf("JSON format"))
 
 	f.BoolVar(&p.formatXML,
 		"format-xml",
 		false,
-		fmt.Sprintf("Write report by XML format"))
+		fmt.Sprintf("XML format"))
+
+	f.BoolVar(&p.formatSummaryText,
+		"format-summary-text",
+		false,
+		fmt.Sprintf("Sumamry report in plain text"))
+
+	f.BoolVar(&p.formatDetailText,
+		"format-detail-text",
+		false,
+		fmt.Sprintf("Detail report in plain text"))
 
 	f.BoolVar(&p.toSlack, "to-slack", false, "Send report via Slack")
 	f.BoolVar(&p.toEMail, "to-email", false, "Send report via Email")
@@ -201,6 +208,11 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 		return subcommands.ExitFailure
 	}
 
+	c.Conf.FormatXML = p.formatXML
+	c.Conf.FormatJSON = p.formatJSON
+	c.Conf.FormatSummaryText = p.formatSummaryText
+	c.Conf.FormatDetailText = p.formatDetailText
+
 	// report
 	reports := []report.ResultWriter{
 		report.StdoutWriter{},
@@ -216,9 +228,7 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 
 	if p.toLocalFile {
 		reports = append(reports, report.LocalFileWriter{
-			CurrentDir:      jsonDir,
-			FormatXML:       p.formatXML,
-			FormatPlainText: p.formatPlainText,
+			CurrentDir: jsonDir,
 		})
 	}
 
@@ -230,11 +240,7 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 			Log.Errorf("Check if there is a bucket beforehand: %s, err: %s", c.Conf.S3Bucket, err)
 			return subcommands.ExitUsageError
 		}
-		reports = append(reports, report.S3Writer{
-			FormatXML:       p.formatXML,
-			FormatJSON:      p.formatJSON,
-			FormatPlainText: p.formatPlainText,
-		})
+		reports = append(reports, report.S3Writer{})
 	}
 
 	if p.toAzureBlob {
@@ -257,11 +263,7 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 			Log.Errorf("Check if there is a container beforehand: %s, err: %s", c.Conf.AzureContainer, err)
 			return subcommands.ExitUsageError
 		}
-		reports = append(reports, report.AzureBlobWriter{
-			FormatXML:       p.formatXML,
-			FormatJSON:      p.formatJSON,
-			FormatPlainText: p.formatPlainText,
-		})
+		reports = append(reports, report.AzureBlobWriter{})
 	}
 
 	// Go routine

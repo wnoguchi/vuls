@@ -25,24 +25,20 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
+	c "github.com/future-architect/vuls/config"
 	"github.com/future-architect/vuls/models"
 	"github.com/k0kubun/pp"
 )
 
 // LocalFileWriter writes results to file.
 type LocalFileWriter struct {
-	CurrentDir      string
-	FormatXML       bool
-	FormatPlainText bool
-	FormatJSON      bool
+	CurrentDir string
 }
 
-//TODO defer?
-//TODO refactoring
 func (w LocalFileWriter) Write(r models.ScanResult) (err error) {
 	path := filepath.Join(w.CurrentDir, r.ReportFileName())
 
-	if w.FormatJSON {
+	if c.Conf.FormatJSON {
 		p := path + ".json"
 		var b []byte
 		if b, err = json.Marshal(r); err != nil {
@@ -53,7 +49,7 @@ func (w LocalFileWriter) Write(r models.ScanResult) (err error) {
 		}
 	}
 
-	if w.FormatPlainText {
+	if c.Conf.FormatDetailText {
 		p := path + ".txt"
 		text, err := toPlainText(r)
 		if err != nil {
@@ -67,7 +63,21 @@ func (w LocalFileWriter) Write(r models.ScanResult) (err error) {
 		}
 	}
 
-	if w.FormatXML {
+	if c.Conf.FormatSummaryText {
+		p := path + ".txt"
+		text, err := toPlainText(r)
+		if err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(
+			p, []byte(text), 0600); err != nil {
+			return fmt.Errorf(
+				"Failed to write text files. path: %s, err: %s",
+				p, err)
+		}
+	}
+
+	if c.Conf.FormatXML {
 		p := path + ".xml"
 		pp.Println(p)
 		var b []byte

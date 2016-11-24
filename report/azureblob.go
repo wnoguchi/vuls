@@ -30,11 +30,7 @@ import (
 )
 
 // AzureBlobWriter writes results to AzureBlob
-type AzureBlobWriter struct {
-	FormatXML       bool
-	FormatPlainText bool
-	FormatJSON      bool
-}
+type AzureBlobWriter struct{}
 
 // CheckIfAzureContainerExists check the existence of Azure storage container
 func CheckIfAzureContainerExists() error {
@@ -68,7 +64,7 @@ func (w AzureBlobWriter) Write(r models.ScanResult) (err error) {
 	}
 
 	key := r.ReportKeyName()
-	if w.FormatJSON {
+	if c.Conf.FormatJSON {
 		k := key + ".json"
 		var b []byte
 		if b, err = json.Marshal(r); err != nil {
@@ -87,7 +83,7 @@ func (w AzureBlobWriter) Write(r models.ScanResult) (err error) {
 		}
 	}
 
-	if w.FormatPlainText {
+	if c.Conf.FormatSummaryText {
 		k := key + ".txt"
 		text, err := toPlainText(r)
 		if err != nil {
@@ -107,7 +103,27 @@ func (w AzureBlobWriter) Write(r models.ScanResult) (err error) {
 		}
 	}
 
-	if w.FormatXML {
+	if c.Conf.FormatDetailText {
+		k := key + ".txt"
+		text, err := toPlainText(r)
+		if err != nil {
+			return err
+		}
+		b := []byte(text)
+
+		if err = cli.CreateBlockBlobFromReader(
+			c.Conf.AzureContainer,
+			k,
+			uint64(len(b)),
+			bytes.NewReader(b),
+			map[string]string{},
+		); err != nil {
+			return fmt.Errorf("%s/%s, %s",
+				c.Conf.AzureContainer, k, err)
+		}
+	}
+
+	if c.Conf.FormatXML {
 		k := key + ".xml"
 		var b []byte
 		if b, err = xml.Marshal(r); err != nil {
