@@ -31,7 +31,7 @@ import (
 // EMailWriter send mail
 type EMailWriter struct{}
 
-func (w EMailWriter) Write(r models.ScanResult) (err error) {
+func (w EMailWriter) Write(rs ...models.ScanResult) (err error) {
 	conf := config.Conf
 	to := strings.Join(conf.EMail.To[:], ", ")
 	cc := strings.Join(conf.EMail.Cc[:], ", ")
@@ -40,46 +40,48 @@ func (w EMailWriter) Write(r models.ScanResult) (err error) {
 		return fmt.Errorf("Failed to parse email addresses: %s", err)
 	}
 
-	subject := fmt.Sprintf("%s%s %s",
-		conf.EMail.SubjectPrefix,
-		r.ServerInfo(),
-		r.CveSummary(),
-	)
+	for _, r := range rs {
+		subject := fmt.Sprintf("%s%s %s",
+			conf.EMail.SubjectPrefix,
+			r.ServerInfo(),
+			r.CveSummary(),
+		)
 
-	headers := make(map[string]string)
-	headers["From"] = conf.EMail.From
-	headers["To"] = to
-	headers["Cc"] = cc
-	headers["Subject"] = subject
+		headers := make(map[string]string)
+		headers["From"] = conf.EMail.From
+		headers["To"] = to
+		headers["Cc"] = cc
+		headers["Subject"] = subject
 
-	var message string
-	for k, v := range headers {
-		message += fmt.Sprintf("%s: %s\r\n", k, v)
-	}
+		var message string
+		for k, v := range headers {
+			message += fmt.Sprintf("%s: %s\r\n", k, v)
+		}
 
-	var body string
-	if body, err = toPlainText(r); err != nil {
-		return err
-	}
-	message += "\r\n" + body
+		var body string
+		if body, err = toPlainText(r); err != nil {
+			return err
+		}
+		message += "\r\n" + body
 
-	smtpServer := net.JoinHostPort(conf.EMail.SMTPAddr, conf.EMail.SMTPPort)
+		smtpServer := net.JoinHostPort(conf.EMail.SMTPAddr, conf.EMail.SMTPPort)
 
-	err = smtp.SendMail(
-		smtpServer,
-		smtp.PlainAuth(
-			"",
-			conf.EMail.User,
-			conf.EMail.Password,
-			conf.EMail.SMTPAddr,
-		),
-		conf.EMail.From,
-		conf.EMail.To,
-		[]byte(message),
-	)
+		err = smtp.SendMail(
+			smtpServer,
+			smtp.PlainAuth(
+				"",
+				conf.EMail.User,
+				conf.EMail.Password,
+				conf.EMail.SMTPAddr,
+			),
+			conf.EMail.From,
+			conf.EMail.To,
+			[]byte(message),
+		)
 
-	if err != nil {
-		return fmt.Errorf("Failed to send emails: %s", err)
+		if err != nil {
+			return fmt.Errorf("Failed to send emails: %s", err)
+		}
 	}
 	return nil
 }

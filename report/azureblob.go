@@ -32,6 +32,97 @@ import (
 // AzureBlobWriter writes results to AzureBlob
 type AzureBlobWriter struct{}
 
+// Write results to Azure Blob storage
+func (w AzureBlobWriter) Write(rs ...models.ScanResult) (err error) {
+	cli, err := getBlobClient()
+	if err != nil {
+		return err
+	}
+
+	for _, r := range rs {
+		key := r.ReportKeyName()
+		if c.Conf.FormatJSON {
+			k := key + ".json"
+			var b []byte
+			if b, err = json.Marshal(r); err != nil {
+				return fmt.Errorf("Failed to Marshal to JSON: %s", err)
+			}
+
+			if err = cli.CreateBlockBlobFromReader(
+				c.Conf.AzureContainer,
+				k,
+				uint64(len(b)),
+				bytes.NewReader(b),
+				map[string]string{},
+			); err != nil {
+				return fmt.Errorf("%s/%s, %s",
+					c.Conf.AzureContainer, k, err)
+			}
+		}
+
+		if c.Conf.FormatSummaryText {
+			k := key + ".txt"
+			text, err := toPlainText(r)
+			if err != nil {
+				return err
+			}
+			b := []byte(text)
+
+			if err = cli.CreateBlockBlobFromReader(
+				c.Conf.AzureContainer,
+				k,
+				uint64(len(b)),
+				bytes.NewReader(b),
+				map[string]string{},
+			); err != nil {
+				return fmt.Errorf("%s/%s, %s",
+					c.Conf.AzureContainer, k, err)
+			}
+		}
+
+		if c.Conf.FormatDetailText {
+			k := key + ".txt"
+			text, err := toPlainText(r)
+			if err != nil {
+				return err
+			}
+			b := []byte(text)
+
+			if err = cli.CreateBlockBlobFromReader(
+				c.Conf.AzureContainer,
+				k,
+				uint64(len(b)),
+				bytes.NewReader(b),
+				map[string]string{},
+			); err != nil {
+				return fmt.Errorf("%s/%s, %s",
+					c.Conf.AzureContainer, k, err)
+			}
+		}
+
+		if c.Conf.FormatXML {
+			k := key + ".xml"
+			var b []byte
+			if b, err = xml.Marshal(r); err != nil {
+				return fmt.Errorf("Failed to Marshal to XML: %s", err)
+			}
+			allBytes := bytes.Join([][]byte{[]byte(xml.Header + vulsOpenTag), b, []byte(vulsCloseTag)}, []byte{})
+
+			if err = cli.CreateBlockBlobFromReader(
+				c.Conf.AzureContainer,
+				k,
+				uint64(len(allBytes)),
+				bytes.NewReader(allBytes),
+				map[string]string{},
+			); err != nil {
+				return fmt.Errorf("%s/%s, %s",
+					c.Conf.AzureContainer, k, err)
+			}
+		}
+	}
+	return
+}
+
 // CheckIfAzureContainerExists check the existence of Azure storage container
 func CheckIfAzureContainerExists() error {
 	cli, err := getBlobClient()
@@ -54,94 +145,4 @@ func getBlobClient() (storage.BlobStorageClient, error) {
 		return storage.BlobStorageClient{}, err
 	}
 	return api.GetBlobService(), nil
-}
-
-// Write results to Azure Blob storage
-func (w AzureBlobWriter) Write(r models.ScanResult) (err error) {
-	cli, err := getBlobClient()
-	if err != nil {
-		return err
-	}
-
-	key := r.ReportKeyName()
-	if c.Conf.FormatJSON {
-		k := key + ".json"
-		var b []byte
-		if b, err = json.Marshal(r); err != nil {
-			return fmt.Errorf("Failed to Marshal to JSON: %s", err)
-		}
-
-		if err = cli.CreateBlockBlobFromReader(
-			c.Conf.AzureContainer,
-			k,
-			uint64(len(b)),
-			bytes.NewReader(b),
-			map[string]string{},
-		); err != nil {
-			return fmt.Errorf("%s/%s, %s",
-				c.Conf.AzureContainer, k, err)
-		}
-	}
-
-	if c.Conf.FormatSummaryText {
-		k := key + ".txt"
-		text, err := toPlainText(r)
-		if err != nil {
-			return err
-		}
-		b := []byte(text)
-
-		if err = cli.CreateBlockBlobFromReader(
-			c.Conf.AzureContainer,
-			k,
-			uint64(len(b)),
-			bytes.NewReader(b),
-			map[string]string{},
-		); err != nil {
-			return fmt.Errorf("%s/%s, %s",
-				c.Conf.AzureContainer, k, err)
-		}
-	}
-
-	if c.Conf.FormatDetailText {
-		k := key + ".txt"
-		text, err := toPlainText(r)
-		if err != nil {
-			return err
-		}
-		b := []byte(text)
-
-		if err = cli.CreateBlockBlobFromReader(
-			c.Conf.AzureContainer,
-			k,
-			uint64(len(b)),
-			bytes.NewReader(b),
-			map[string]string{},
-		); err != nil {
-			return fmt.Errorf("%s/%s, %s",
-				c.Conf.AzureContainer, k, err)
-		}
-	}
-
-	if c.Conf.FormatXML {
-		k := key + ".xml"
-		var b []byte
-		if b, err = xml.Marshal(r); err != nil {
-			return fmt.Errorf("Failed to Marshal to XML: %s", err)
-		}
-		allBytes := bytes.Join([][]byte{[]byte(xml.Header + vulsOpenTag), b, []byte(vulsCloseTag)}, []byte{})
-
-		if err = cli.CreateBlockBlobFromReader(
-			c.Conf.AzureContainer,
-			k,
-			uint64(len(allBytes)),
-			bytes.NewReader(allBytes),
-			map[string]string{},
-		); err != nil {
-			return fmt.Errorf("%s/%s, %s",
-				c.Conf.AzureContainer, k, err)
-		}
-	}
-
-	return
 }

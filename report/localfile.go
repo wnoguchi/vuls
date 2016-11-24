@@ -35,58 +35,60 @@ type LocalFileWriter struct {
 	CurrentDir string
 }
 
-func (w LocalFileWriter) Write(r models.ScanResult) (err error) {
-	path := filepath.Join(w.CurrentDir, r.ReportFileName())
+func (w LocalFileWriter) Write(rs ...models.ScanResult) (err error) {
+	for _, r := range rs {
+		path := filepath.Join(w.CurrentDir, r.ReportFileName())
 
-	if c.Conf.FormatJSON {
-		p := path + ".json"
-		var b []byte
-		if b, err = json.Marshal(r); err != nil {
-			return fmt.Errorf("Failed to Marshal to JSON: %s", err)
+		if c.Conf.FormatJSON {
+			p := path + ".json"
+			var b []byte
+			if b, err = json.Marshal(r); err != nil {
+				return fmt.Errorf("Failed to Marshal to JSON: %s", err)
+			}
+			if err := ioutil.WriteFile(p, b, 0600); err != nil {
+				return fmt.Errorf("Failed to write JSON. path: %s, err: %s", p, err)
+			}
 		}
-		if err := ioutil.WriteFile(p, b, 0600); err != nil {
-			return fmt.Errorf("Failed to write JSON. path: %s, err: %s", p, err)
-		}
-	}
 
-	if c.Conf.FormatDetailText {
-		p := path + ".txt"
-		text, err := toPlainText(r)
-		if err != nil {
-			return err
+		if c.Conf.FormatDetailText {
+			p := path + ".txt"
+			text, err := toPlainText(r)
+			if err != nil {
+				return err
+			}
+			if err := ioutil.WriteFile(
+				p, []byte(text), 0600); err != nil {
+				return fmt.Errorf(
+					"Failed to write text files. path: %s, err: %s",
+					p, err)
+			}
 		}
-		if err := ioutil.WriteFile(
-			p, []byte(text), 0600); err != nil {
-			return fmt.Errorf(
-				"Failed to write text files. path: %s, err: %s",
-				p, err)
-		}
-	}
 
-	if c.Conf.FormatSummaryText {
-		p := path + ".txt"
-		text, err := toPlainText(r)
-		if err != nil {
-			return err
+		if c.Conf.FormatSummaryText {
+			p := path + ".txt"
+			text, err := toPlainText(r)
+			if err != nil {
+				return err
+			}
+			if err := ioutil.WriteFile(
+				p, []byte(text), 0600); err != nil {
+				return fmt.Errorf(
+					"Failed to write text files. path: %s, err: %s",
+					p, err)
+			}
 		}
-		if err := ioutil.WriteFile(
-			p, []byte(text), 0600); err != nil {
-			return fmt.Errorf(
-				"Failed to write text files. path: %s, err: %s",
-				p, err)
-		}
-	}
 
-	if c.Conf.FormatXML {
-		p := path + ".xml"
-		pp.Println(p)
-		var b []byte
-		if b, err = xml.Marshal(r); err != nil {
-			return fmt.Errorf("Failed to Marshal to XML: %s", err)
-		}
-		allBytes := bytes.Join([][]byte{[]byte(xml.Header + vulsOpenTag), b, []byte(vulsCloseTag)}, []byte{})
-		if err := ioutil.WriteFile(p, allBytes, 0600); err != nil {
-			return fmt.Errorf("Failed to write XML. path: %s, err: %s", p, err)
+		if c.Conf.FormatXML {
+			p := path + ".xml"
+			pp.Println(p)
+			var b []byte
+			if b, err = xml.Marshal(r); err != nil {
+				return fmt.Errorf("Failed to Marshal to XML: %s", err)
+			}
+			allBytes := bytes.Join([][]byte{[]byte(xml.Header + vulsOpenTag), b, []byte(vulsCloseTag)}, []byte{})
+			if err := ioutil.WriteFile(p, allBytes, 0600); err != nil {
+				return fmt.Errorf("Failed to write XML. path: %s, err: %s", p, err)
+			}
 		}
 	}
 	return nil
