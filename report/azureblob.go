@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
 
@@ -39,6 +40,23 @@ func (w AzureBlobWriter) Write(rs ...models.ScanResult) (err error) {
 		return err
 	}
 
+	if c.Conf.FormatSummaryText {
+		timestr := rs[0].ScannedAt.Format(time.RFC3339)
+		k := fmt.Sprintf(timestr + "/summary.txt")
+		text := toOneLineSummary(rs)
+		b := []byte(text)
+		if err = cli.CreateBlockBlobFromReader(
+			c.Conf.AzureContainer,
+			k,
+			uint64(len(b)),
+			bytes.NewReader(b),
+			map[string]string{},
+		); err != nil {
+			return fmt.Errorf("%s/%s, %s",
+				c.Conf.AzureContainer, k, err)
+		}
+	}
+
 	for _, r := range rs {
 		key := r.ReportKeyName()
 		if c.Conf.FormatJSON {
@@ -47,26 +65,6 @@ func (w AzureBlobWriter) Write(rs ...models.ScanResult) (err error) {
 			if b, err = json.Marshal(r); err != nil {
 				return fmt.Errorf("Failed to Marshal to JSON: %s", err)
 			}
-
-			if err = cli.CreateBlockBlobFromReader(
-				c.Conf.AzureContainer,
-				k,
-				uint64(len(b)),
-				bytes.NewReader(b),
-				map[string]string{},
-			); err != nil {
-				return fmt.Errorf("%s/%s, %s",
-					c.Conf.AzureContainer, k, err)
-			}
-		}
-
-		if c.Conf.FormatSummaryText {
-			k := key + ".txt"
-			text, err := toPlainText(r)
-			if err != nil {
-				return err
-			}
-			b := []byte(text)
 
 			if err = cli.CreateBlockBlobFromReader(
 				c.Conf.AzureContainer,

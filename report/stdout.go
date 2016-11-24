@@ -20,6 +20,7 @@ package report
 import (
 	"fmt"
 
+	c "github.com/future-architect/vuls/config"
 	"github.com/future-architect/vuls/models"
 )
 
@@ -27,12 +28,23 @@ import (
 type StdoutWriter struct{}
 
 func (w StdoutWriter) Write(rs ...models.ScanResult) error {
-	for _, r := range rs {
-		text, err := toPlainText(r)
-		if err != nil {
-			return err
+
+	if c.Conf.FormatSummaryText {
+		fmt.Print("\n\n")
+		fmt.Println(toOneLineSummary(rs))
+		fmt.Print("\n\n")
+		fmt.Println("To view the detail report, run ./vuls report subcommand.")
+		fmt.Println("For details, run ./vuls report -h")
+	}
+
+	if c.Conf.FormatDetailText {
+		for _, r := range rs {
+			text, err := toPlainText(r)
+			if err != nil {
+				return err
+			}
+			fmt.Println(text)
 		}
-		fmt.Println(text)
 	}
 	return nil
 }

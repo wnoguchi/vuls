@@ -27,6 +27,25 @@ import (
 	"github.com/gosuri/uitable"
 )
 
+func toOneLineSummary(rs []models.ScanResult) string {
+	table := uitable.New()
+	table.MaxColWidth = 100
+	table.Wrap = true
+	for _, r := range rs {
+		cols := []interface{}{
+			r.ServerInfo(),
+			r.CveSummary(),
+		}
+		table.AddRow(cols...)
+	}
+	template := `Scan Summary
+============
+%s
+`
+	return fmt.Sprintf(template, table)
+}
+
+//TODO refactoring
 func toPlainText(scanResult models.ScanResult) (string, error) {
 	serverInfo := scanResult.ServerInfo()
 

@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -45,7 +46,25 @@ func getS3() *s3.S3 {
 // Write results to S3
 // http://docs.aws.amazon.com/sdk-for-go/latest/v1/developerguide/common-examples.title.html
 func (w S3Writer) Write(rs ...models.ScanResult) (err error) {
+	if len(rs) == 0 {
+		return nil
+	}
+
 	svc := getS3()
+
+	if c.Conf.FormatSummaryText {
+		timestr := rs[0].ScannedAt.Format(time.RFC3339)
+		k := fmt.Sprintf(timestr + "/summary.txt")
+		text := toOneLineSummary(rs)
+		_, err = svc.PutObject(&s3.PutObjectInput{
+			Bucket: &c.Conf.S3Bucket,
+			Key:    &k,
+			Body:   bytes.NewReader([]byte(text)),
+		})
+		if err != nil {
+			return fmt.Errorf("Failed to upload data to %s/%s, %s", c.Conf.S3Bucket, k, err)
+		}
+	}
 
 	for _, r := range rs {
 		key := r.ReportKeyName()
@@ -59,22 +78,6 @@ func (w S3Writer) Write(rs ...models.ScanResult) (err error) {
 				Bucket: &c.Conf.S3Bucket,
 				Key:    &k,
 				Body:   bytes.NewReader(b),
-			})
-			if err != nil {
-				return fmt.Errorf("Failed to upload data to %s/%s, %s", c.Conf.S3Bucket, key, err)
-			}
-		}
-
-		if c.Conf.FormatSummaryText {
-			k := key + ".txt"
-			text, err := toPlainText(r)
-			if err != nil {
-				return err
-			}
-			_, err = svc.PutObject(&s3.PutObjectInput{
-				Bucket: &c.Conf.S3Bucket,
-				Key:    &k,
-				Body:   bytes.NewReader([]byte(text)),
 			})
 			if err != nil {
 				return fmt.Errorf("Failed to upload data to %s/%s, %s", c.Conf.S3Bucket, key, err)

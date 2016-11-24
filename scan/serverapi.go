@@ -557,8 +557,9 @@ func checkRequiredPackagesInstalled() []error {
 }
 
 func scanVulns(jsonDir string, scannedAt time.Time) []error {
+	var results models.ScanResults
 	timeoutSec := 120 * 60
-	return parallelSSHExec(func(o osTypeInterface) error {
+	errs := parallelSSHExec(func(o osTypeInterface) error {
 		if err := o.scanPackages(); err != nil {
 			return err
 		}
@@ -572,6 +573,7 @@ func scanVulns(jsonDir string, scannedAt time.Time) []error {
 			return err
 		}
 		r.ScannedAt = scannedAt
+		results = append(results, r)
 
 		config.Conf.FormatJSON = true
 		w := report.LocalFileWriter{
@@ -583,6 +585,19 @@ func scanVulns(jsonDir string, scannedAt time.Time) []error {
 		}
 		return nil
 	}, timeoutSec)
+
+	config.Conf.FormatSummaryText = true
+	w := report.StdoutWriter{}
+	if err := w.Write(results...); err != nil {
+		return []error{
+			fmt.Errorf("Failed to write summary report: %s", err),
+		}
+	}
+
+	if errs != nil {
+		return errs
+	}
+	return nil
 }
 
 func ensureResultDir(scannedAt time.Time) (currentDir string, err error) {
