@@ -23,6 +23,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	c "github.com/future-architect/vuls/config"
@@ -35,12 +36,10 @@ type LocalFileWriter struct {
 }
 
 func (w LocalFileWriter) Write(rs ...models.ScanResult) (err error) {
-
 	if c.Conf.FormatShortText {
 		path := filepath.Join(w.CurrentDir, "summary.txt")
 		text := toOneLineSummary(rs)
-		if err := ioutil.WriteFile(
-			path, []byte(text), 0600); err != nil {
+		if err := writeFile(path, []byte(text), 0600); err != nil {
 			return fmt.Errorf(
 				"Failed to write to file. path: %s, err: %s",
 				path, err)
@@ -56,7 +55,7 @@ func (w LocalFileWriter) Write(rs ...models.ScanResult) (err error) {
 			if b, err = json.Marshal(r); err != nil {
 				return fmt.Errorf("Failed to Marshal to JSON: %s", err)
 			}
-			if err := ioutil.WriteFile(p, b, 0600); err != nil {
+			if err := writeFile(p, b, 0600); err != nil {
 				return fmt.Errorf("Failed to write JSON. path: %s, err: %s", p, err)
 			}
 		}
@@ -67,11 +66,10 @@ func (w LocalFileWriter) Write(rs ...models.ScanResult) (err error) {
 			if err != nil {
 				return err
 			}
-			if err := ioutil.WriteFile(
+			if err := writeFile(
 				p, []byte(text), 0600); err != nil {
 				return fmt.Errorf(
-					"Failed to write text files. path: %s, err: %s",
-					p, err)
+					"Failed to write text files. path: %s, err: %s", p, err)
 			}
 		}
 
@@ -82,10 +80,27 @@ func (w LocalFileWriter) Write(rs ...models.ScanResult) (err error) {
 				return fmt.Errorf("Failed to Marshal to XML: %s", err)
 			}
 			allBytes := bytes.Join([][]byte{[]byte(xml.Header + vulsOpenTag), b, []byte(vulsCloseTag)}, []byte{})
-			if err := ioutil.WriteFile(p, allBytes, 0600); err != nil {
+			if err := writeFile(p, allBytes, 0600); err != nil {
 				return fmt.Errorf("Failed to write XML. path: %s, err: %s", p, err)
 			}
 		}
 	}
+	return nil
+}
+
+func writeFile(path string, data []byte, perm os.FileMode) error {
+	var err error
+	if c.Conf.GZIP {
+		if data, err = gz(data); err != nil {
+			return err
+		}
+		path = path + ".gz"
+	}
+
+	if err := ioutil.WriteFile(
+		path, []byte(data), perm); err != nil {
+		return err
+	}
+
 	return nil
 }

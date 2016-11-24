@@ -35,6 +35,10 @@ type AzureBlobWriter struct{}
 
 // Write results to Azure Blob storage
 func (w AzureBlobWriter) Write(rs ...models.ScanResult) (err error) {
+	if len(rs) == 0 {
+		return nil
+	}
+
 	cli, err := getBlobClient()
 	if err != nil {
 		return err
@@ -45,15 +49,8 @@ func (w AzureBlobWriter) Write(rs ...models.ScanResult) (err error) {
 		k := fmt.Sprintf(timestr + "/summary.txt")
 		text := toOneLineSummary(rs)
 		b := []byte(text)
-		if err = cli.CreateBlockBlobFromReader(
-			c.Conf.AzureContainer,
-			k,
-			uint64(len(b)),
-			bytes.NewReader(b),
-			map[string]string{},
-		); err != nil {
-			return fmt.Errorf("%s/%s, %s",
-				c.Conf.AzureContainer, k, err)
+		if err := createBlockBlob(cli, k, b); err != nil {
+			return err
 		}
 	}
 
@@ -65,16 +62,8 @@ func (w AzureBlobWriter) Write(rs ...models.ScanResult) (err error) {
 			if b, err = json.Marshal(r); err != nil {
 				return fmt.Errorf("Failed to Marshal to JSON: %s", err)
 			}
-
-			if err = cli.CreateBlockBlobFromReader(
-				c.Conf.AzureContainer,
-				k,
-				uint64(len(b)),
-				bytes.NewReader(b),
-				map[string]string{},
-			); err != nil {
-				return fmt.Errorf("%s/%s, %s",
-					c.Conf.AzureContainer, k, err)
+			if err := createBlockBlob(cli, k, b); err != nil {
+				return err
 			}
 		}
 
@@ -85,16 +74,8 @@ func (w AzureBlobWriter) Write(rs ...models.ScanResult) (err error) {
 				return err
 			}
 			b := []byte(text)
-
-			if err = cli.CreateBlockBlobFromReader(
-				c.Conf.AzureContainer,
-				k,
-				uint64(len(b)),
-				bytes.NewReader(b),
-				map[string]string{},
-			); err != nil {
-				return fmt.Errorf("%s/%s, %s",
-					c.Conf.AzureContainer, k, err)
+			if err := createBlockBlob(cli, k, b); err != nil {
+				return err
 			}
 		}
 
@@ -105,16 +86,8 @@ func (w AzureBlobWriter) Write(rs ...models.ScanResult) (err error) {
 				return fmt.Errorf("Failed to Marshal to XML: %s", err)
 			}
 			allBytes := bytes.Join([][]byte{[]byte(xml.Header + vulsOpenTag), b, []byte(vulsCloseTag)}, []byte{})
-
-			if err = cli.CreateBlockBlobFromReader(
-				c.Conf.AzureContainer,
-				k,
-				uint64(len(allBytes)),
-				bytes.NewReader(allBytes),
-				map[string]string{},
-			); err != nil {
-				return fmt.Errorf("%s/%s, %s",
-					c.Conf.AzureContainer, k, err)
+			if err := createBlockBlob(cli, k, allBytes); err != nil {
+				return err
 			}
 		}
 	}
@@ -143,4 +116,26 @@ func getBlobClient() (storage.BlobStorageClient, error) {
 		return storage.BlobStorageClient{}, err
 	}
 	return api.GetBlobService(), nil
+}
+
+func createBlockBlob(cli storage.BlobStorageClient, k string, b []byte) error {
+	var err error
+	if c.Conf.GZIP {
+		if b, err = gz(b); err != nil {
+			return err
+		}
+		k = k + ".gz"
+	}
+
+	if err := cli.CreateBlockBlobFromReader(
+		c.Conf.AzureContainer,
+		k,
+		uint64(len(b)),
+		bytes.NewReader(b),
+		map[string]string{},
+	); err != nil {
+		return fmt.Errorf("Failed to upload data to %s/%s, %s",
+			c.Conf.AzureContainer, k, err)
+	}
+	return nil
 }

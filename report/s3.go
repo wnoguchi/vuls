@@ -56,13 +56,8 @@ func (w S3Writer) Write(rs ...models.ScanResult) (err error) {
 		timestr := rs[0].ScannedAt.Format(time.RFC3339)
 		k := fmt.Sprintf(timestr + "/summary.txt")
 		text := toOneLineSummary(rs)
-		_, err = svc.PutObject(&s3.PutObjectInput{
-			Bucket: &c.Conf.S3Bucket,
-			Key:    &k,
-			Body:   bytes.NewReader([]byte(text)),
-		})
-		if err != nil {
-			return fmt.Errorf("Failed to upload data to %s/%s, %s", c.Conf.S3Bucket, k, err)
+		if err := putObject(svc, k, []byte(text)); err != nil {
+			return err
 		}
 	}
 
@@ -74,13 +69,8 @@ func (w S3Writer) Write(rs ...models.ScanResult) (err error) {
 			if b, err = json.Marshal(r); err != nil {
 				return fmt.Errorf("Failed to Marshal to JSON: %s", err)
 			}
-			_, err = svc.PutObject(&s3.PutObjectInput{
-				Bucket: &c.Conf.S3Bucket,
-				Key:    &k,
-				Body:   bytes.NewReader(b),
-			})
-			if err != nil {
-				return fmt.Errorf("Failed to upload data to %s/%s, %s", c.Conf.S3Bucket, key, err)
+			if err := putObject(svc, k, b); err != nil {
+				return err
 			}
 		}
 
@@ -90,13 +80,8 @@ func (w S3Writer) Write(rs ...models.ScanResult) (err error) {
 			if err != nil {
 				return err
 			}
-			_, err = svc.PutObject(&s3.PutObjectInput{
-				Bucket: &c.Conf.S3Bucket,
-				Key:    &k,
-				Body:   bytes.NewReader([]byte(text)),
-			})
-			if err != nil {
-				return fmt.Errorf("Failed to upload data to %s/%s, %s", c.Conf.S3Bucket, key, err)
+			if err := putObject(svc, k, []byte(text)); err != nil {
+				return err
 			}
 		}
 
@@ -107,13 +92,8 @@ func (w S3Writer) Write(rs ...models.ScanResult) (err error) {
 				return fmt.Errorf("Failed to Marshal to XML: %s", err)
 			}
 			allBytes := bytes.Join([][]byte{[]byte(xml.Header + vulsOpenTag), b, []byte(vulsCloseTag)}, []byte{})
-			_, err = svc.PutObject(&s3.PutObjectInput{
-				Bucket: &c.Conf.S3Bucket,
-				Key:    &k,
-				Body:   bytes.NewReader(allBytes),
-			})
-			if err != nil {
-				return fmt.Errorf("Failed to upload data to %s/%s, %s", c.Conf.S3Bucket, key, err)
+			if err := putObject(svc, k, allBytes); err != nil {
+				return err
 			}
 		}
 	}
@@ -141,6 +121,26 @@ func CheckIfBucketExists() error {
 		return fmt.Errorf(
 			"Failed to find the buckets. profile: %s, region: %s, bukdet: %s",
 			c.Conf.AwsProfile, c.Conf.AwsRegion, c.Conf.S3Bucket)
+	}
+	return nil
+}
+
+func putObject(svc *s3.S3, k string, b []byte) error {
+	var err error
+	if c.Conf.GZIP {
+		if b, err = gz(b); err != nil {
+			return err
+		}
+		k = k + ".gz"
+	}
+
+	if _, err := svc.PutObject(&s3.PutObjectInput{
+		Bucket: &c.Conf.S3Bucket,
+		Key:    &k,
+		Body:   bytes.NewReader(b),
+	}); err != nil {
+		return fmt.Errorf("Failed to upload data to %s/%s, %s",
+			c.Conf.S3Bucket, k, err)
 	}
 	return nil
 }

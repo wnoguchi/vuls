@@ -53,6 +53,8 @@ type ReportCmd struct {
 	formatShortText bool
 	formatFullText  bool
 
+	gzip bool
+
 	awsProfile  string
 	awsS3Bucket string
 	awsRegion   string
@@ -86,6 +88,7 @@ func (*ReportCmd) Usage() string {
 		[-format-xml]
 		[-format-short-text]
 		[-format-full-text]
+		[-gzip]
 		[-aws-profile=default]
 		[-aws-region=us-west-2]
 		[-aws-s3-bucket=bucket_name]
@@ -150,6 +153,8 @@ func (p *ReportCmd) SetFlags(f *flag.FlagSet) {
 		false,
 		fmt.Sprintf("Detail report in plain text"))
 
+	f.BoolVar(&p.gzip, "gzip", false, "gzip compression")
+
 	f.BoolVar(&p.toSlack, "to-slack", false, "Send report via Slack")
 	f.BoolVar(&p.toEMail, "to-email", false, "Send report via Email")
 	f.BoolVar(&p.toLocalFile,
@@ -212,6 +217,8 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 	c.Conf.FormatJSON = p.formatJSON
 	c.Conf.FormatShortText = p.formatShortText
 	c.Conf.FormatFullText = p.formatFullText
+
+	c.Conf.GZIP = p.gzip
 
 	// report
 	reports := []report.ResultWriter{

@@ -61,6 +61,8 @@ type Config struct {
 	FormatShortText bool
 	FormatFullText  bool
 
+	GZIP bool
+
 	AwsProfile string
 	AwsRegion  string
 	S3Bucket   string
