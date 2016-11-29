@@ -576,6 +576,7 @@ func scanVulns(jsonDir string, scannedAt time.Time) []error {
 		results = append(results, r)
 
 		config.Conf.FormatJSON = true
+		config.Conf.FormatShortText = true
 		w := report.LocalFileWriter{
 			CurrentDir: jsonDir,
 		}
