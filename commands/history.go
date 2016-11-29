@@ -88,7 +88,7 @@ func (p *HistoryCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{
 		}
 		splitPath := strings.Split(d, string(os.PathSeparator))
 		timeStr := splitPath[len(splitPath)-1]
-		fmt.Printf("%s scanned %d servers: %s\n",
+		fmt.Printf("%s %d servers: %s\n",
 			timeStr,
 			len(hosts),
 			strings.Join(hosts, ", "),

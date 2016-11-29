@@ -28,9 +28,10 @@ import (
 type StdoutWriter struct{}
 
 func (w StdoutWriter) Write(rs ...models.ScanResult) error {
-
 	if c.Conf.FormatShortText {
 		fmt.Print("\n\n")
+		fmt.Println("Scan Summary")
+		fmt.Println("============")
 		fmt.Println(toOneLineSummary(rs))
 		fmt.Print("\n")
 		fmt.Println("To view the detail report, run ./vuls report subcommand.")

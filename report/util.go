@@ -38,11 +38,7 @@ func toOneLineSummary(rs []models.ScanResult) string {
 		}
 		table.AddRow(cols...)
 	}
-	template := `Scan Summary
-============
-%s
-`
-	return fmt.Sprintf(template, table)
+	return fmt.Sprintf("%s\n", table)
 }
 
 func toPlainText(r models.ScanResult) (string, error) {

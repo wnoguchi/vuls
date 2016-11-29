@@ -187,7 +187,6 @@ func (p *ReportCmd) SetFlags(f *flag.FlagSet) {
 
 // Execute execute
 func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-
 	if err := c.Load(p.configPath, ""); err != nil {
 		logrus.Errorf("Error loading %s, %s", p.configPath, err)
 		return subcommands.ExitUsageError
@@ -195,9 +194,6 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 
 	c.Conf.Debug = p.debug
 	c.Conf.Lang = p.lang
-
-	logrus.Info("Start reporting")
-	logrus.Infof("config: %s", p.configPath)
 
 	// logger
 	Log := util.NewCustomLogger(c.ServerInfo{})
@@ -281,7 +277,6 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 			return subcommands.ExitFailure
 		}
 
-		Log.Info("Reporting...")
 		filtered := r.FilterByCvssOver()
 		for _, w := range reports {
 			if err := w.Write(filtered); err != nil {

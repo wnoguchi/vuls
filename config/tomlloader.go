@@ -119,7 +119,7 @@ func (c TOMLLoader) Load(pathToToml, keyPass string) error {
 				return fmt.Errorf(
 					"Failed to read OWASP Dependency Check XML: %s", err)
 			}
-			log.Infof("Loaded from OWASP Dependency Check XML: %s",
+			log.Debugf("Loaded from OWASP Dependency Check XML: %s",
 				s.ServerName)
 			s.CpeNames = append(s.CpeNames, cpes...)
 		}

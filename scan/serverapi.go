@@ -576,7 +576,6 @@ func scanVulns(jsonDir string, scannedAt time.Time) []error {
 		results = append(results, r)
 
 		config.Conf.FormatJSON = true
-		config.Conf.FormatShortText = true
 		w := report.LocalFileWriter{
 			CurrentDir: jsonDir,
 		}
@@ -588,10 +587,15 @@ func scanVulns(jsonDir string, scannedAt time.Time) []error {
 	}, timeoutSec)
 
 	config.Conf.FormatShortText = true
-	w := report.StdoutWriter{}
-	if err := w.Write(results...); err != nil {
-		return []error{
-			fmt.Errorf("Failed to write summary report: %s", err),
+	ws := []report.ResultWriter{
+		report.StdoutWriter{},
+		report.LocalFileWriter{CurrentDir: jsonDir},
+	}
+	for _, w := range ws {
+		if err := w.Write(results...); err != nil {
+			return []error{
+				fmt.Errorf("Failed to write summary report: %s", err),
+			}
 		}
 	}
 
