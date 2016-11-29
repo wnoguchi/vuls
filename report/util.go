@@ -27,13 +27,16 @@ import (
 	"github.com/gosuri/uitable"
 )
 
+const maxColWidth = 100
+
 func toOneLineSummary(rs []models.ScanResult) string {
 	table := uitable.New()
-	table.MaxColWidth = 100
+	table.MaxColWidth = maxColWidth
 	table.Wrap = true
 	for _, r := range rs {
 		cols := []interface{}{
-			r.ServerInfo(),
+			r.ServerName,
+			fmt.Sprintf("%s%s", r.Family, r.Release),
 			r.CveSummary(),
 		}
 		table.AddRow(cols...)
@@ -41,15 +44,89 @@ func toOneLineSummary(rs []models.ScanResult) string {
 	return fmt.Sprintf("%s\n", table)
 }
 
-func toPlainText(r models.ScanResult) string {
-	serverInfo := r.ServerInfo()
+func toShortPlainText(r models.ScanResult) string {
+	stable := uitable.New()
+	stable.MaxColWidth = maxColWidth
+	stable.Wrap = true
 
-	var buffer bytes.Buffer
-	for i := 0; i < len(serverInfo); i++ {
-		buffer.WriteString("=")
+	cves := r.KnownCves
+	if !config.Conf.IgnoreUnscoredCves {
+		cves = append(cves, r.UnknownCves...)
+	}
+
+	var buf bytes.Buffer
+	for i := 0; i < len(r.ServerInfo()); i++ {
+		buf.WriteString("=")
 	}
 	header := fmt.Sprintf("%s\n%s",
-		serverInfo, buffer.String())
+		r.ServerInfo(), buf.String())
+
+	if len(cves) == 0 {
+		return fmt.Sprintf(`
+%s
+No unsecure packages.
+`, header)
+	}
+
+	for _, d := range cves {
+		var scols []string
+
+		switch {
+		case config.Conf.Lang == "ja" &&
+			0 < d.CveDetail.Jvn.CvssScore():
+			summary := fmt.Sprintf("%s\n%s",
+				d.CveDetail.Jvn.CveTitle(),
+				d.CveDetail.Jvn.Link(),
+			)
+			scols = []string{
+				d.CveDetail.CveID,
+				fmt.Sprintf("%-4.1f (%s)",
+					d.CveDetail.CvssScore(config.Conf.Lang),
+					d.CveDetail.Jvn.CvssSeverity(),
+				),
+				summary,
+			}
+
+		case 0 < d.CveDetail.CvssScore("en"):
+			summary := fmt.Sprintf("%s\n%s/%s",
+				d.CveDetail.Nvd.CveSummary(),
+				cveDetailsBaseURL,
+				d.CveDetail.CveID)
+			scols = []string{
+				d.CveDetail.CveID,
+				fmt.Sprintf("%-4.1f (%s)",
+					d.CveDetail.CvssScore(config.Conf.Lang),
+					d.CveDetail.Nvd.CvssSeverity(),
+				),
+				summary,
+			}
+		default:
+			scols = []string{
+				d.CveDetail.CveID,
+				"?",
+				distroLinks(d, r.Family)[0].url,
+			}
+		}
+
+		cols := make([]interface{}, len(scols))
+		for i := range cols {
+			cols[i] = scols[i]
+		}
+		stable.AddRow(cols...)
+		stable.AddRow("")
+	}
+	return fmt.Sprintf("%s\n%s\n", header, stable)
+}
+
+func toFullPlainText(r models.ScanResult) string {
+	serverInfo := r.ServerInfo()
+
+	var buf bytes.Buffer
+	for i := 0; i < len(serverInfo); i++ {
+		buf.WriteString("=")
+	}
+	header := fmt.Sprintf("%s\n%s",
+		serverInfo, buf.String())
 
 	if len(r.KnownCves) == 0 && len(r.UnknownCves) == 0 {
 		return fmt.Sprintf(`
@@ -58,7 +135,7 @@ No unsecure packages.
 `, header)
 	}
 
-	summary := ToPlainTextSummary(r)
+	//  summary := toShortPlainText(r)
 	scoredReport, unscoredReport := []string{}, []string{}
 	scoredReport, unscoredReport = toPlainTextDetails(r, r.Family)
 
@@ -76,63 +153,7 @@ No unsecure packages.
 		scored,
 		unscored,
 	)
-	text := fmt.Sprintf("%s\n%s\n%s\n", header, summary, detail)
-
-	return text
-}
-
-// ToPlainTextSummary format summary for plain text.
-func ToPlainTextSummary(r models.ScanResult) string {
-	stable := uitable.New()
-	stable.MaxColWidth = 84
-	stable.Wrap = true
-
-	cves := r.KnownCves
-	if !config.Conf.IgnoreUnscoredCves {
-		cves = append(cves, r.UnknownCves...)
-	}
-
-	for _, d := range cves {
-		var scols []string
-
-		switch {
-		case config.Conf.Lang == "ja" &&
-			0 < d.CveDetail.Jvn.CvssScore():
-
-			summary := d.CveDetail.Jvn.CveTitle()
-			scols = []string{
-				d.CveDetail.CveID,
-				fmt.Sprintf("%-4.1f (%s)",
-					d.CveDetail.CvssScore(config.Conf.Lang),
-					d.CveDetail.Jvn.CvssSeverity(),
-				),
-				summary,
-			}
-		case 0 < d.CveDetail.CvssScore("en"):
-			summary := d.CveDetail.Nvd.CveSummary()
-			scols = []string{
-				d.CveDetail.CveID,
-				fmt.Sprintf("%-4.1f (%s)",
-					d.CveDetail.CvssScore(config.Conf.Lang),
-					d.CveDetail.Nvd.CvssSeverity(),
-				),
-				summary,
-			}
-		default:
-			scols = []string{
-				d.CveDetail.CveID,
-				"?",
-				d.CveDetail.Nvd.CveSummary(),
-			}
-		}
-
-		cols := make([]interface{}, len(scols))
-		for i := range cols {
-			cols[i] = scols[i]
-		}
-		stable.AddRow(cols...)
-	}
-	return fmt.Sprintf("%s", stable)
+	return fmt.Sprintf("%s\n%s\n", header, detail)
 }
 
 func toPlainTextDetails(r models.ScanResult, osFamily string) (scoredReport, unscoredReport []string) {
@@ -169,7 +190,7 @@ func toPlainTextDetails(r models.ScanResult, osFamily string) (scoredReport, uns
 func toPlainTextUnknownCve(cveInfo models.CveInfo, osFamily string) string {
 	cveID := cveInfo.CveDetail.CveID
 	dtable := uitable.New()
-	dtable.MaxColWidth = 100
+	dtable.MaxColWidth = maxColWidth
 	dtable.Wrap = true
 	dtable.AddRow(cveID)
 	dtable.AddRow("-------------")
@@ -193,7 +214,7 @@ func toPlainTextDetailsLangJa(cveInfo models.CveInfo, osFamily string) string {
 	jvn := cveDetail.Jvn
 
 	dtable := uitable.New()
-	dtable.MaxColWidth = 100
+	dtable.MaxColWidth = maxColWidth
 	dtable.Wrap = true
 	dtable.AddRow(cveID)
 	dtable.AddRow("-------------")
@@ -235,7 +256,7 @@ func toPlainTextDetailsLangEn(d models.CveInfo, osFamily string) string {
 	nvd := cveDetail.Nvd
 
 	dtable := uitable.New()
-	dtable.MaxColWidth = 100
+	dtable.MaxColWidth = maxColWidth
 	dtable.Wrap = true
 	dtable.AddRow(cveID)
 	dtable.AddRow("-------------")

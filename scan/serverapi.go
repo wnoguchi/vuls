@@ -578,7 +578,7 @@ func scanVulns(jsonDir string, scannedAt time.Time) []error {
 		return nil
 	}, timeoutSec)
 
-	config.Conf.FormatShortText = true
+	config.Conf.FormatOneLineText = true
 	config.Conf.FormatJSON = true
 	ws := []report.ResultWriter{
 		report.StdoutWriter{},

@@ -28,7 +28,7 @@ import (
 type StdoutWriter struct{}
 
 func (w StdoutWriter) Write(rs ...models.ScanResult) error {
-	if c.Conf.FormatShortText {
+	if c.Conf.FormatOneLineText {
 		fmt.Print("\n\n")
 		fmt.Println("Scan Summary")
 		fmt.Println("============")
@@ -36,9 +36,15 @@ func (w StdoutWriter) Write(rs ...models.ScanResult) error {
 		fmt.Print("\n")
 	}
 
+	if c.Conf.FormatShortText {
+		for _, r := range rs {
+			fmt.Println(toShortPlainText(r))
+		}
+	}
+
 	if c.Conf.FormatFullText {
 		for _, r := range rs {
-			fmt.Println(toPlainText(r))
+			fmt.Println(toFullPlainText(r))
 		}
 	}
 	return nil

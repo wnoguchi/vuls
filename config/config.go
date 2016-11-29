@@ -56,10 +56,11 @@ type Config struct {
 	CveDBPath   string
 	CacheDBPath string
 
-	FormatXML       bool
-	FormatJSON      bool
-	FormatShortText bool
-	FormatFullText  bool
+	FormatXML         bool
+	FormatJSON        bool
+	FormatOneLineText bool
+	FormatShortText   bool
+	FormatFullText    bool
 
 	GZIP bool
 
@@ -70,9 +71,6 @@ type Config struct {
 	AzureAccount   string
 	AzureKey       string
 	AzureContainer string
-
-	//  CpeNames      []string
-	//  SummaryMode          bool
 }
 
 // Validate configuration

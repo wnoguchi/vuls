@@ -49,10 +49,11 @@ type ReportCmd struct {
 	toS3        bool
 	toAzureBlob bool
 
-	formatJSON      bool
-	formatXML       bool
-	formatShortText bool
-	formatFullText  bool
+	formatJSON        bool
+	formatXML         bool
+	formatOneLineText bool
+	formatShortText   bool
+	formatFullText    bool
 
 	gzip bool
 
@@ -87,6 +88,7 @@ func (*ReportCmd) Usage() string {
 		[-to-azure-blob]
 		[-format-json]
 		[-format-xml]
+		[-format-one-line-text]
 		[-format-short-text]
 		[-format-full-text]
 		[-gzip]
@@ -144,10 +146,15 @@ func (p *ReportCmd) SetFlags(f *flag.FlagSet) {
 		false,
 		fmt.Sprintf("XML format"))
 
+	f.BoolVar(&p.formatOneLineText,
+		"format-one-line-text",
+		false,
+		fmt.Sprintf("One line summary in plain text"))
+
 	f.BoolVar(&p.formatShortText,
 		"format-short-text",
 		false,
-		fmt.Sprintf("One line summary in plain text"))
+		fmt.Sprintf("Summary in plain text"))
 
 	f.BoolVar(&p.formatFullText,
 		"format-full-text",
@@ -212,6 +219,7 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 
 	c.Conf.FormatXML = p.formatXML
 	c.Conf.FormatJSON = p.formatJSON
+	c.Conf.FormatOneLineText = p.formatOneLineText
 	c.Conf.FormatShortText = p.formatShortText
 	c.Conf.FormatFullText = p.formatFullText
 
@@ -270,7 +278,8 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 		reports = append(reports, report.AzureBlobWriter{})
 	}
 
-	if !(p.formatJSON || p.formatShortText || p.formatFullText || p.formatXML) {
+	if !(p.formatJSON || p.formatOneLineText ||
+		p.formatShortText || p.formatFullText || p.formatXML) {
 		c.Conf.FormatShortText = true
 	}
 
