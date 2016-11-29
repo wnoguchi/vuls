@@ -26,6 +26,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	c "github.com/future-architect/vuls/config"
+	"github.com/future-architect/vuls/models"
 	"github.com/future-architect/vuls/report"
 	"github.com/future-architect/vuls/util"
 	"github.com/google/subcommands"
@@ -269,20 +270,19 @@ func (p *ReportCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 		reports = append(reports, report.AzureBlobWriter{})
 	}
 
-	// Go routine
-	history, err := loadOneScanHistory(jsonDir)
-	for _, r := range history.ScanResults {
-		if err != nil {
-			log.Errorf("Failed to read from JSON: %s", err)
-			return subcommands.ExitFailure
-		}
+	if !(p.formatJSON || p.formatShortText || p.formatFullText || p.formatXML) {
+		c.Conf.FormatShortText = true
+	}
 
-		filtered := r.FilterByCvssOver()
-		for _, w := range reports {
-			if err := w.Write(filtered); err != nil {
-				Log.Fatalf("Failed to report, err: %s", err)
-				return subcommands.ExitFailure
-			}
+	history, err := loadOneScanHistory(jsonDir)
+	var res models.ScanResults
+	for _, r := range history.ScanResults {
+		res = append(res, r.FilterByCvssOver())
+	}
+	for _, w := range reports {
+		if err := w.Write(res...); err != nil {
+			Log.Fatalf("Failed to report, err: %s", err)
+			return subcommands.ExitFailure
 		}
 	}
 

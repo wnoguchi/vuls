@@ -48,7 +48,8 @@ func toPlainText(r models.ScanResult) (string, error) {
 	for i := 0; i < len(serverInfo); i++ {
 		buffer.WriteString("=")
 	}
-	header := fmt.Sprintf("%s\n%s", serverInfo, buffer.String())
+	header := fmt.Sprintf("%s\n%s",
+		serverInfo, buffer.String())
 
 	if len(r.KnownCves) == 0 && len(r.UnknownCves) == 0 {
 		return fmt.Sprintf(`

@@ -34,8 +34,6 @@ func (w StdoutWriter) Write(rs ...models.ScanResult) error {
 		fmt.Println("============")
 		fmt.Println(toOneLineSummary(rs))
 		fmt.Print("\n")
-		fmt.Println("To view the detail report, run ./vuls report subcommand.")
-		fmt.Println("For details, run ./vuls report -h")
 	}
 
 	if c.Conf.FormatFullText {
