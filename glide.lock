@@ -1,5 +1,5 @@
 hash: ca64aef6e9e94c7be91f79b88edb847363c8a5bd48da4ad27784e9342c8db6e2
-updated: 2016-11-14T17:14:19.692072231Z
+updated: 2016-11-30T00:00:25.163716144+09:00
 imports:
 - name: github.com/asaskevich/govalidator
   version: 7b3beb6df3c42abd3509abfc3bcacc0fbfb7c877
@@ -69,7 +69,7 @@ imports:
 - name: github.com/k0kubun/pp
   version: f5dce6ed0ccf6c350f1679964ff6b61f3d6d2033
 - name: github.com/kotakanbe/go-cve-dictionary
-  version: 2dd369d26145eab2178f6d509821fcabc9391627
+  version: 7eb1f1a2e7e436177570bf234e21c2ed9489d3fb
   subpackages:
   - config
   - db
