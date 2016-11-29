@@ -41,7 +41,7 @@ func toOneLineSummary(rs []models.ScanResult) string {
 	return fmt.Sprintf("%s\n", table)
 }
 
-func toPlainText(r models.ScanResult) (string, error) {
+func toPlainText(r models.ScanResult) string {
 	serverInfo := r.ServerInfo()
 
 	var buffer bytes.Buffer
@@ -55,7 +55,7 @@ func toPlainText(r models.ScanResult) (string, error) {
 		return fmt.Sprintf(`
 %s
 No unsecure packages.
-`, header), nil
+`, header)
 	}
 
 	summary := ToPlainTextSummary(r)
@@ -78,7 +78,7 @@ No unsecure packages.
 	)
 	text := fmt.Sprintf("%s\n%s\n%s\n", header, summary, detail)
 
-	return text, nil
+	return text
 }
 
 // ToPlainTextSummary format summary for plain text.

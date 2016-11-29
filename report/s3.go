@@ -76,10 +76,7 @@ func (w S3Writer) Write(rs ...models.ScanResult) (err error) {
 
 		if c.Conf.FormatFullText {
 			k := key + ".txt"
-			text, err := toPlainText(r)
-			if err != nil {
-				return err
-			}
+			text := toPlainText(r)
 			if err := putObject(svc, k, []byte(text)); err != nil {
 				return err
 			}

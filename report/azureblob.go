@@ -69,11 +69,7 @@ func (w AzureBlobWriter) Write(rs ...models.ScanResult) (err error) {
 
 		if c.Conf.FormatFullText {
 			k := key + ".txt"
-			text, err := toPlainText(r)
-			if err != nil {
-				return err
-			}
-			b := []byte(text)
+			b := []byte(toPlainText(r))
 			if err := createBlockBlob(cli, k, b); err != nil {
 				return err
 			}

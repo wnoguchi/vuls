@@ -337,12 +337,8 @@ func (o *redhat) scanUnsecurePackagesUsingYumCheckUpdate() (CvePacksList, error)
 	cveIDPackInfoMap := make(map[string][]models.PackageInfo)
 	for _, res := range results {
 		for _, cveID := range res.CveIDs {
-			//  packInfo, found := o.Packages.FindByName(res.Packname)
-			//  if !found {
-			//      return CvePacksList{}, fmt.Errorf(
-			//          "Faild to transform data structure: %v", res.Packname)
-			//  }
-			cveIDPackInfoMap[cveID] = append(cveIDPackInfoMap[cveID], res.PackInfo)
+			cveIDPackInfoMap[cveID] = append(
+				cveIDPackInfoMap[cveID], res.PackInfo)
 		}
 	}
 
@@ -929,7 +925,6 @@ func (o *redhat) extractPackNameVerRel(nameVerRel string) (name, ver, rel string
 
 // parseYumUpdateinfoListAvailable collect AdvisorID(RHSA, ALAS), packages
 func (o *redhat) parseYumUpdateinfoListAvailable(stdout string) (advisoryIDPacksList, error) {
-
 	result := []advisoryIDPacks{}
 	lines := strings.Split(stdout, "\n")
 	for _, line := range lines {

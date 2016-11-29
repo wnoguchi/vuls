@@ -38,11 +38,7 @@ func (w StdoutWriter) Write(rs ...models.ScanResult) error {
 
 	if c.Conf.FormatFullText {
 		for _, r := range rs {
-			text, err := toPlainText(r)
-			if err != nil {
-				return err
-			}
-			fmt.Println(text)
+			fmt.Println(toPlainText(r))
 		}
 	}
 	return nil

@@ -57,15 +57,9 @@ func (w EMailWriter) Write(rs ...models.ScanResult) (err error) {
 		for k, v := range headers {
 			message += fmt.Sprintf("%s: %s\r\n", k, v)
 		}
-
-		var body string
-		if body, err = toPlainText(r); err != nil {
-			return err
-		}
-		message += "\r\n" + body
+		message += "\r\n" + toPlainText(r)
 
 		smtpServer := net.JoinHostPort(conf.EMail.SMTPAddr, conf.EMail.SMTPPort)
-
 		err = smtp.SendMail(
 			smtpServer,
 			smtp.PlainAuth(
