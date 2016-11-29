@@ -327,7 +327,7 @@ func (o *debian) fillCandidateVersion(before models.PackageInfoList) (filled []m
 	cmd := fmt.Sprintf("LANGUAGE=en_US.UTF-8 apt-cache policy %s", strings.Join(names, " "))
 	r := o.ssh(cmd, sudo)
 	if !r.isSuccess() {
-		return nil, fmt.Errorf("Failed to SSH: %s.", r)
+		return nil, fmt.Errorf("Failed to SSH: %s", r)
 	}
 	packChangelog := o.splitAptCachePolicy(r.Stdout)
 	for k, v := range packChangelog {

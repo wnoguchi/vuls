@@ -1,11 +1,12 @@
 package scan
 
 import (
+	"reflect"
+	"testing"
+
 	"github.com/future-architect/vuls/config"
 	"github.com/future-architect/vuls/models"
 	cve "github.com/kotakanbe/go-cve-dictionary/models"
-	"reflect"
-	"testing"
 )
 
 func TestPackageCveInfosSetGet(t *testing.T) {
@@ -135,7 +136,9 @@ func TestGetScanResults(t *testing.T) {
 	}
 
 	// check scanResults
-	scanResults, _ := GetScanResults()
+	r1, _ := deb1.convertToModel()
+	r2, _ := deb2.convertToModel()
+	scanResults := []models.ScanResult{r1, r2}
 	if len(scanResults) != 2 {
 		t.Errorf("length of scanResults should be 2")
 	}
