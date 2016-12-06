@@ -63,6 +63,7 @@ type ScanCmd struct {
 
 	// reporting
 	reportSlack     bool
+	reportChatwork  bool
 	reportMail      bool
 	reportJSON      bool
 	reportText      bool
@@ -108,6 +109,7 @@ func (*ScanCmd) Usage() string {
 		[-report-mail]
 		[-report-s3]
 		[-report-slack]
+		[-report-chatwork]
 		[-report-text]
 		[-report-xml]
 		[-http-proxy=http://192.168.0.1:8080]
@@ -203,6 +205,7 @@ func (p *ScanCmd) SetFlags(f *flag.FlagSet) {
 	)
 
 	f.BoolVar(&p.reportSlack, "report-slack", false, "Send report via Slack")
+	f.BoolVar(&p.reportChatwork, "report-chatwork", false, "Send report via ChatWork")
 	f.BoolVar(&p.reportMail, "report-mail", false, "Send report via Email")
 	f.BoolVar(&p.reportJSON,
 		"report-json",
@@ -338,6 +341,9 @@ func (p *ScanCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) 
 	}
 	if p.reportSlack {
 		reports = append(reports, report.SlackWriter{})
+	}
+	if p.reportChatWork {
+		reports = append(reports, report.ChatWorkWriter{})
 	}
 	if p.reportMail {
 		reports = append(reports, report.MailWriter{})
