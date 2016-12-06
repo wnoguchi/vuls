@@ -63,7 +63,7 @@ type ScanCmd struct {
 
 	// reporting
 	reportSlack     bool
-	reportChatwork  bool
+	reportChatWork  bool
 	reportMail      bool
 	reportJSON      bool
 	reportText      bool
@@ -205,7 +205,7 @@ func (p *ScanCmd) SetFlags(f *flag.FlagSet) {
 	)
 
 	f.BoolVar(&p.reportSlack, "report-slack", false, "Send report via Slack")
-	f.BoolVar(&p.reportChatwork, "report-chatwork", false, "Send report via ChatWork")
+	f.BoolVar(&p.reportChatWork, "report-chatwork", false, "Send report via ChatWork")
 	f.BoolVar(&p.reportMail, "report-mail", false, "Send report via Email")
 	f.BoolVar(&p.reportJSON,
 		"report-json",

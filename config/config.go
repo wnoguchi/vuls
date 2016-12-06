@@ -37,6 +37,7 @@ type Config struct {
 
 	Mail    smtpConf
 	Slack   SlackConf
+	ChatWork   ChatWorkConf
 	Default ServerInfo
 	Servers map[string]ServerInfo
 
@@ -204,6 +205,12 @@ type SlackConf struct {
 	Text        string `json:"text"`
 
 	UseThisTime bool
+}
+
+// ChatWorkConf is ChatWork config
+type ChatWorkConf struct {
+	RoomId   string `json:"roomId"`
+	Token   string `json:"token"`
 }
 
 // Validate validates configuration
