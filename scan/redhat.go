@@ -375,7 +375,13 @@ func (o *redhat) scanUnsecurePackagesUsingYumCheckUpdate() (CvePacksList, error)
 // parseYumCheckUpdateLines parse yum check-update to get package name, candidate version
 func (o *redhat) parseYumCheckUpdateLines(stdout string) (results models.PackageInfoList, err error) {
 	needToParse := false
-	lines := strings.Split(stdout, "\n")
+        // Yum list wraps lines - FedoraForum.org
+        // see http://forums.fedoraforum.org/showthread.php?t=293866
+        check_update_output := strings.Replace(stdout, "\n", "#", -1)
+        check_update_output = strings.Replace(check_update_output, "# ", " ", -1)
+        check_update_output = strings.Replace(check_update_output, "#", "\n", -1)
+	lines := strings.Split(check_update_output, "\n")
+	//lines := strings.Split(stdout, "\n")
 	for _, line := range lines {
 		// update information of packages begin after blank line.
 		if trimed := strings.TrimSpace(line); len(trimed) == 0 {
